@@ -5,3 +5,19 @@ defaultTargets = ["atcoder-lean-1"]
 [[lean_exe]]
 name = "atcoder-lean-1"
 root = "Main"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.22.0"
+
+[[require]]
+name = "Regex"
+git = "https://github.com/pandaman64/lean-regex"
+rev = "v4.22.0"
+subDir = "regex"
+
+[[require]]
+name = "Parser"
+scope = "fgdorais"
+rev = "617f4fa5c48f35076274d57546884261560f1285"
