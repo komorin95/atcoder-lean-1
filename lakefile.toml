@@ -1,0 +1,7 @@
+name = "atcoder-lean-1"
+version = "0.1.0"
+defaultTargets = ["atcoder-lean-1"]
+
+[[lean_exe]]
+name = "atcoder-lean-1"
+root = "Main"
