@@ -5,4 +5,7 @@ def main : IO Unit := do
   let intokens := instr.split (·.isWhitespace)
   let a := intokens[0]!.trim.toNat!
   let b := intokens[1]!.trim.toNat!
-  IO.println "Yeah"
+  if (a * b) % 2 == 0 then
+    IO.println "Even"
+  else
+    IO.println "Odd"

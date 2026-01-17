@@ -11,3 +11,41 @@ require Regex from git "https://github.com/pandaman64/lean-regex"@"v4.22.0"/"reg
 require "fgdorais" / Parser @ git "617f4fa5c48f35076274d57546884261560f1285"
 
 @[default_target] lean_exe «atcoder-lean-1» where root := `Main
+
+def io_examples : List (String × String) := [
+  (
+    r#"3 4
+"#,
+    r#"Even
+"#,
+  ),
+  (
+    r#"1 21
+"#,
+    r#"Odd
+"#,
+  )
+]
+
+script io_test do
+  let this_package := «atcoder-lean-1»
+  let fetched ← this_package.get
+  let exepath := fetched.file
+  IO.println s!"Testing the binary {exepath}"
+  for (input, output) in io_examples do
+    let spawnArgs : IO.Process.SpawnArgs :=
+      ⟨{stdin := .piped, stdout := .piped, stderr := .piped},
+        exepath.toString, #[], none, #[], false, false ⟩
+    let proc ← IO.Process.spawn spawnArgs
+    proc.stdin.putStr input
+    let _ ← proc.takeStdin
+    let actualOutput ← proc.stdout.readToEnd
+    if output != actualOutput then
+      IO.println "Error: for an input example"
+      IO.println input
+      IO.println "the binary gave the output"
+      IO.println actualOutput
+      IO.println "while the expected output is"
+      IO.println output
+      return 1
+  return 0
