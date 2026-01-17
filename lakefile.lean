@@ -27,6 +27,13 @@ def io_examples : List (String × String) := [
   )
 ]
 
+/-
+  Test the binary against the examples defined as io_examples above.
+  The binary is assumed to be already built and up-to-date.
+  ref: https://zenn.dev/qwjyh/articles/17dbe5844bbb48
+
+  TODO: Find a good way to build the binary. Maybe by 'fetch' func?
+-/
 script io_test do
   let this_package := «atcoder-lean-1»
   let fetched ← this_package.get
@@ -34,7 +41,7 @@ script io_test do
   IO.println s!"Testing the binary {exepath}"
   for (input, output) in io_examples do
     let spawnArgs : IO.Process.SpawnArgs :=
-      ⟨{stdin := .piped, stdout := .piped, stderr := .piped},
+      ⟨{stdin := .piped, stdout := .piped, stderr := .inherit},
         exepath.toString, #[], none, #[], false, false ⟩
     let proc ← IO.Process.spawn spawnArgs
     proc.stdin.putStr input
