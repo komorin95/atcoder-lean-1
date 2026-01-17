@@ -34,6 +34,7 @@ def io_examples : List (String × String) := [
 
   TODO: Find a good way to build the binary. Maybe by 'fetch' func?
 -/
+@[test_driver]
 script io_test do
   let this_package := «atcoder-lean-1»
   let fetched ← this_package.get
