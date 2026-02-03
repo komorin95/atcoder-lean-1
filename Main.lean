@@ -1,3 +1,5 @@
+import Mathlib.Data.List.Chain
+
 def binary_search (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
     left
@@ -50,3 +52,15 @@ def main : IO Unit := do
   if alen : a.size != n then unreachable! else
   let solution := solve n l k a (nc := by grind) (alen := by grind)
   IO.println s!"{solution}"
+
+structure ProblemInput where
+  n : Nat
+  cond_n : n <= 100_000
+  k : Nat
+  cond_k : 1 <= k
+  cond_kn : k <= n
+  a : List Nat
+  cond_an : a.length = n
+  cond_a0 : a[0] > 0
+  cond_a : List.Chain (α := Nat) (· < ·) 0 a
+  l : Nat
