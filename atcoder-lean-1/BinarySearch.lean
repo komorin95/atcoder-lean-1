@@ -41,3 +41,31 @@ abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
 theorem upper_is_monotone
   (pred : Nat → Prop)
   : monotone (upper pred) := by grind
+
+theorem upper_maximum_is_maximum
+  (n : Nat)
+  (pred : Nat → Prop)
+  (h_upper_max : maximum n (upper pred))
+  : maximum n pred :=
+by
+  obtain ⟨m, h_m⟩ := h_upper_max.left
+  have : ¬ m > n := by grind
+  grind
+
+theorem binary_search_for_nonmonotone
+  (pred0 : Nat → Prop)
+  (pred : Nat → Bool)
+  (h_pred : ∀ n, pred n = true ↔ upper pred0 n)
+  (left : Nat) (right : Nat)
+  (h_left : pred left = true)
+  (h_right : pred right = false)
+  : maximum (binary_search pred left right) pred0 :=
+by
+  apply upper_maximum_is_maximum
+  have pred_calc_upper : (upper pred0) = (pred · = true) := by grind
+  rw [pred_calc_upper]
+  apply binary_search_is_valid
+  rw [← pred_calc_upper]
+  exact upper_is_monotone pred0
+  grind
+  grind
