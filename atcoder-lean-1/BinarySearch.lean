@@ -12,12 +12,32 @@ def binary_search (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
     else
       binary_search pred left mid
 
+abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
+  pred n ∧ ∀ m, (m > n) → ¬ pred m
+
+abbrev monotone (pred : Nat → Prop) : Prop :=
+  ∀ m n, (m <= n) → pred n → pred m
+
+theorem monotone_maximum_from_one_step
+  (pred : Nat → Prop)
+  (h_monotone : monotone pred)
+  (n : Nat)
+  (h_n : pred n)
+  (h_n1 : ¬ pred (n + 1))
+  : maximum n pred := by grind
+
 theorem binary_search_is_valid
   (pred : Nat → Bool) (left : Nat) (right : Nat)
-  (h_monotone : ∀ m n, (m <= n) → pred n = true → pred m = true)
+  (h_monotone : monotone (pred · = true))
   (h_left : pred left = true)
   (h_right : pred right = false)
-  : (pred (binary_search pred left right) = true)
-  ∧ (pred ((binary_search pred left right) + 1) = false) :=
+  : maximum (binary_search pred left right) (pred · = true) :=
 by
   fun_induction binary_search with grind
+
+abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
+  ∃ m, m >= n ∧ pred m
+
+theorem upper_is_monotone
+  (pred : Nat → Prop)
+  : monotone (upper pred) := by grind
