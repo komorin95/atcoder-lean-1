@@ -89,13 +89,13 @@ structure ProblemInput where
   l : Nat
   cond_l : a.getLast (by grind) < l
 
-def partialScore (a0 : Nat) (a : List Nat) (l : Nat) :=
+def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   match a with
   | [] => l - a0
-  | a1 :: as => min (a1 - a0) (partialScore a1 as l)
+  | a1 :: as => min (a1 - a0) (scoreRec a1 as l)
 
 def score (input : ProblemInput) (b : List Nat) :=
-  partialScore 0 b input.l
+  scoreRec 0 b input.l
 
 abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop :=
   List.Sublist b input.a
@@ -105,18 +105,37 @@ abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop 
 abbrev scoreAchievable (input : ProblemInput) (s : Nat) : Prop :=
   ∃ b, scoreAchievableBy input b s
 
-def scoreOfPartitionRec (a : List Nat) : Nat :=
-  match a with
-  | [x, y] => y - x
-  | x :: (y :: a) => min (y - x) (scoreOfPartitionRec (y :: a))
-  | _ => unreachable!
+def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Bool :=
+  if len == 0 then
+    l - a0 >= score
+  else
+    match a with
+    | [] => false
+    | a1 :: as =>
+      if a1 - a0 >= score then
+        betterScoreAchievableRec a1 as l (len - 1) score
+      else
+        betterScoreAchievableRec a0 as l len score
 
-def isAchievable (input : ProblemInput) (score : Nat) : Bool := false
+def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
+  betterScoreAchievableRec 0 input.a input.l input.k score
 
-def solve (input : ProblemInput) : Nat := 0
+-- theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
+--   : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true := sorry
 
-theorem solutionIsValid (input : ProblemInput)
-  : maximum (solve input) (scoreAchievable input) := sorry
+def solve (input : ProblemInput) : Nat :=
+  binarySearch (betterScoreAchievable input) 1 input.l
+
+-- theorem solutionIsValid (input : ProblemInput)
+--   : maximum (solve input) (scoreAchievable input) :=
+-- by
+--   apply binarySearchForNonmonotone
+--   case h_pred =>
+--     intro
+--     apply Iff.symm
+--     apply betterScoreAchievableIsValid
+--   case h_left => sorry
+--   case h_right => sorry
 
 def main : IO Unit := do
   let stdin ← IO.getStdin
