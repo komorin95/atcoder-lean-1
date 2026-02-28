@@ -2,15 +2,15 @@ import Mathlib.Data.List.Chain
 
 -- BinarySearch.lean start
 
-def binary_search (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
+def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
     left
   else
     let mid := (left + right) / 2
     if pred mid then
-      binary_search pred mid right
+      binarySearch pred mid right
     else
-      binary_search pred left mid
+      binarySearch pred left mid
 
 abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
   pred n ∧ ∀ m, (m > n) → ¬ pred m
@@ -18,19 +18,19 @@ abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
 abbrev monotone (pred : Nat → Prop) : Prop :=
   ∀ m n, (m <= n) → pred n → pred m
 
-theorem binary_search_is_valid
+theorem binarySearchIsValid
   (pred : Nat → Bool) (left : Nat) (right : Nat)
   (h_monotone : monotone (pred · = true))
   (h_left : pred left = true)
   (h_right : pred right = false)
-  : maximum (binary_search pred left right) (pred · = true) :=
+  : maximum (binarySearch pred left right) (pred · = true) :=
 by
-  fun_induction binary_search with grind
+  fun_induction binarySearch with grind
 
 abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
   ∃ m, m >= n ∧ pred m
 
-theorem upper_maximum_is_maximum
+theorem upperMaximumIsMaximum
   (n : Nat)
   (pred : Nat → Prop)
   (h_upper_max : maximum n (upper pred))
@@ -40,19 +40,19 @@ by
   have : ¬ m > n := by grind
   grind
 
-theorem binary_search_for_nonmonotone
+theorem binarySearchForNonmonotone
   (pred0 : Nat → Prop)
   (pred : Nat → Bool)
   (h_pred : ∀ n, pred n = true ↔ upper pred0 n)
   (left : Nat) (right : Nat)
   (h_left : pred left = true)
   (h_right : pred right = false)
-  : maximum (binary_search pred left right) pred0 :=
+  : maximum (binarySearch pred left right) pred0 :=
 by
-  apply upper_maximum_is_maximum
+  apply upperMaximumIsMaximum
   have pred_calc_upper : (upper pred0) = (pred · = true) := by grind
   rw [pred_calc_upper]
-  apply binary_search_is_valid
+  apply binarySearchIsValid
   grind
   grind
   grind
@@ -75,7 +75,7 @@ def solve0 (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat
     let last_piece := l - a[n-1]
     curr_len := curr_len + last_piece
     return curr_len >= score
-  binary_search isAchievable 1 l
+  binarySearch isAchievable 1 l
 
 structure ProblemInput where
   n : Nat
