@@ -18,14 +18,6 @@ abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
 abbrev monotone (pred : Nat → Prop) : Prop :=
   ∀ m n, (m <= n) → pred n → pred m
 
-theorem monotone_maximum_from_one_step
-  (pred : Nat → Prop)
-  (h_monotone : monotone pred)
-  (n : Nat)
-  (h_n : pred n)
-  (h_n1 : ¬ pred (n + 1))
-  : maximum n pred := by grind
-
 theorem binary_search_is_valid
   (pred : Nat → Bool) (left : Nat) (right : Nat)
   (h_monotone : monotone (pred · = true))
@@ -37,10 +29,6 @@ by
 
 abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
   ∃ m, m >= n ∧ pred m
-
-theorem upper_is_monotone
-  (pred : Nat → Prop)
-  : monotone (upper pred) := by grind
 
 theorem upper_maximum_is_maximum
   (n : Nat)
@@ -65,7 +53,6 @@ by
   have pred_calc_upper : (upper pred0) = (pred · = true) := by grind
   rw [pred_calc_upper]
   apply binary_search_is_valid
-  rw [← pred_calc_upper]
-  exact upper_is_monotone pred0
+  grind
   grind
   grind
