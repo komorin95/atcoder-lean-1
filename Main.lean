@@ -1,5 +1,7 @@
 import Mathlib.Data.List.Chain
 
+-- BinarySearch.lean start
+
 def binary_search (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
     left
@@ -10,15 +12,52 @@ def binary_search (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
     else
       binary_search pred left mid
 
+abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
+  pred n ∧ ∀ m, (m > n) → ¬ pred m
+
+abbrev monotone (pred : Nat → Prop) : Prop :=
+  ∀ m n, (m <= n) → pred n → pred m
+
 theorem binary_search_is_valid
   (pred : Nat → Bool) (left : Nat) (right : Nat)
-  (h_monotone : ∀ m n, (m <= n) → pred n = true → pred m = true)
+  (h_monotone : monotone (pred · = true))
   (h_left : pred left = true)
   (h_right : pred right = false)
-  : (pred (binary_search pred left right) = true)
-  ∧ (pred ((binary_search pred left right) + 1) = false) :=
+  : maximum (binary_search pred left right) (pred · = true) :=
 by
   fun_induction binary_search with grind
+
+abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
+  ∃ m, m >= n ∧ pred m
+
+theorem upper_maximum_is_maximum
+  (n : Nat)
+  (pred : Nat → Prop)
+  (h_upper_max : maximum n (upper pred))
+  : maximum n pred :=
+by
+  obtain ⟨m, h_m⟩ := h_upper_max.left
+  have : ¬ m > n := by grind
+  grind
+
+theorem binary_search_for_nonmonotone
+  (pred0 : Nat → Prop)
+  (pred : Nat → Bool)
+  (h_pred : ∀ n, pred n = true ↔ upper pred0 n)
+  (left : Nat) (right : Nat)
+  (h_left : pred left = true)
+  (h_right : pred right = false)
+  : maximum (binary_search pred left right) pred0 :=
+by
+  apply upper_maximum_is_maximum
+  have pred_calc_upper : (upper pred0) = (pred · = true) := by grind
+  rw [pred_calc_upper]
+  apply binary_search_is_valid
+  grind
+  grind
+  grind
+
+-- BinarySearch.lean end
 
 def solve0 (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat :=
   let zero_to_n := List.finRange n
@@ -38,21 +77,6 @@ def solve0 (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat
     return curr_len >= score
   binary_search isAchievable 1 l
 
-def main0 : IO Unit := do
-  let stdin ← IO.getStdin
-  let instr ← stdin.readToEnd
-  let intokens := (instr.split (·.isWhitespace)).toArray
-  let n := intokens[0]!.trim.toNat!
-  if nc : n < 1 then unreachable! else
-  let l := intokens[1]!.trim.toNat!
-  let k := intokens[2]!.trim.toNat!
-  let a := Array.ofFn (n := n) fun i =>
-    intokens[i.val + 3]!.trim.toNat!
-  -- TODO: この仮定は人工的に与えなくてすむはず
-  if alen : a.size != n then unreachable! else
-  let solution := solve0 n l k a (nc := by grind) (alen := by grind)
-  IO.println s!"{solution}"
-
 structure ProblemInput where
   n : Nat
   cond_n : n <= 100_000
@@ -61,11 +85,38 @@ structure ProblemInput where
   cond_kn : k <= n
   a : List Nat
   cond_an : a.length = n
-  cond_a0 : a[0] > 0
   cond_a : List.Chain (α := Nat) (· < ·) 0 a
   l : Nat
+  cond_l : a.getLast (by grind) < l
+
+def partialScore (a0 : Nat) (a : List Nat) (l : Nat) :=
+  match a with
+  | [] => l - a0
+  | a1 :: as => min (a1 - a0) (partialScore a1 as l)
+
+def score (input : ProblemInput) (b : List Nat) :=
+  partialScore 0 b input.l
+
+abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop :=
+  List.Sublist b input.a
+  ∧ b.length = input.k
+  ∧ score input b = s
+
+abbrev scoreAchievable (input : ProblemInput) (s : Nat) : Prop :=
+  ∃ b, scoreAchievableBy input b s
+
+def scoreOfPartitionRec (a : List Nat) : Nat :=
+  match a with
+  | [x, y] => y - x
+  | x :: (y :: a) => min (y - x) (scoreOfPartitionRec (y :: a))
+  | _ => unreachable!
+
+def isAchievable (input : ProblemInput) (score : Nat) : Bool := false
 
 def solve (input : ProblemInput) : Nat := 0
+
+theorem solutionIsValid (input : ProblemInput)
+  : maximum (solve input) (scoreAchievable input) := sorry
 
 def main : IO Unit := do
   let stdin ← IO.getStdin
@@ -81,8 +132,8 @@ def main : IO Unit := do
     intokens[i.val + 3]!.trim.toNat!
   -- TODO: この仮定は人工的に与えなくてすむはず
   if cond_an : a.length != n then unreachable! else
-  if cond_a0 : a[0]'(by grind) <= 0 then unreachable! else
   if cond_a : ¬ List.Chain (α := Nat) (· < ·) 0 a then unreachable! else
+  if cond_l : a.getLast (by grind) >= l then unreachable! else
   let input : ProblemInput := {
     n := n
     cond_n := by grind
@@ -91,9 +142,9 @@ def main : IO Unit := do
     cond_kn := by grind
     a := a
     cond_an := by grind
-    cond_a0 := by grind
     cond_a := by grind
     l := l
+    cond_l := by grind
   }
   let solution := solve input
   IO.println s!"{solution}"
