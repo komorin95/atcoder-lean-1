@@ -20,7 +20,7 @@ theorem binary_search_is_valid
 by
   fun_induction binary_search with grind
 
-def solve (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat :=
+def solve0 (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat :=
   let zero_to_n := List.finRange n
   let rec isAchievable (score : Nat) : Bool := Id.run do
     let mut curr_len := 0
@@ -38,7 +38,7 @@ def solve (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat 
     return curr_len >= score
   binary_search isAchievable 1 l
 
-def main : IO Unit := do
+def main0 : IO Unit := do
   let stdin ← IO.getStdin
   let instr ← stdin.readToEnd
   let intokens := (instr.split (·.isWhitespace)).toArray
@@ -50,7 +50,7 @@ def main : IO Unit := do
     intokens[i.val + 3]!.trim.toNat!
   -- TODO: この仮定は人工的に与えなくてすむはず
   if alen : a.size != n then unreachable! else
-  let solution := solve n l k a (nc := by grind) (alen := by grind)
+  let solution := solve0 n l k a (nc := by grind) (alen := by grind)
   IO.println s!"{solution}"
 
 structure ProblemInput where
@@ -64,3 +64,36 @@ structure ProblemInput where
   cond_a0 : a[0] > 0
   cond_a : List.Chain (α := Nat) (· < ·) 0 a
   l : Nat
+
+def solve (input : ProblemInput) : Nat := 0
+
+def main : IO Unit := do
+  let stdin ← IO.getStdin
+  let instr ← stdin.readToEnd
+  let intokens := (instr.split (·.isWhitespace)).toArray
+  let n := intokens[0]!.trim.toNat!
+  if cond_n : n > 100_000 then unreachable! else
+  let l := intokens[1]!.trim.toNat!
+  let k := intokens[2]!.trim.toNat!
+  if cond_k : k < 1 then unreachable! else
+  if cond_kn : k > n then unreachable! else
+  let a := List.ofFn (n := n) fun i =>
+    intokens[i.val + 3]!.trim.toNat!
+  -- TODO: この仮定は人工的に与えなくてすむはず
+  if cond_an : a.length != n then unreachable! else
+  if cond_a0 : a[0]'(by grind) <= 0 then unreachable! else
+  if cond_a : ¬ List.Chain (α := Nat) (· < ·) 0 a then unreachable! else
+  let input : ProblemInput := {
+    n := n
+    cond_n := by grind
+    k := k
+    cond_k := by grind
+    cond_kn := by grind
+    a := a
+    cond_an := by grind
+    cond_a0 := by grind
+    cond_a := by grind
+    l := l
+  }
+  let solution := solve input
+  IO.println s!"{solution}"
