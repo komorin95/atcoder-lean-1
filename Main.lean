@@ -59,24 +59,6 @@ by
 
 -- BinarySearch.lean end
 
-def solve0 (n l k : Nat) (a : Array Nat) {nc : n >= 1} {alen : a.size = n} : Nat :=
-  let zero_to_n := List.finRange n
-  let rec isAchievable (score : Nat) : Bool := Id.run do
-    let mut curr_len := 0
-    let mut curr_k := k
-    for ifin in zero_to_n do
-      let i := ifin.val -- こうしないと配列アクセスの!が消せない
-      let this_piece := if i == 0 then a[0] else a[i] - a[i-1]
-      curr_len := curr_len + this_piece
-      if curr_k > 0 && curr_len >= score then
-        curr_k := curr_k - 1
-        curr_len := 0
-    if curr_k > 0 then return false
-    let last_piece := l - a[n-1]
-    curr_len := curr_len + last_piece
-    return curr_len >= score
-  binarySearch isAchievable 1 l
-
 structure ProblemInput where
   n : Nat
   cond_n : n <= 100_000
@@ -120,22 +102,22 @@ def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Boo
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
 
--- theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
---   : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true := sorry
+theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
+  : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true := sorry
 
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 1 input.l
 
--- theorem solutionIsValid (input : ProblemInput)
---   : maximum (solve input) (scoreAchievable input) :=
--- by
---   apply binarySearchForNonmonotone
---   case h_pred =>
---     intro
---     apply Iff.symm
---     apply betterScoreAchievableIsValid
---   case h_left => sorry
---   case h_right => sorry
+theorem solutionIsValid (input : ProblemInput)
+  : maximum (solve input) (scoreAchievable input) :=
+by
+  apply binarySearchForNonmonotone
+  case h_pred =>
+    intro
+    apply Iff.symm
+    apply betterScoreAchievableIsValid
+  case h_left => sorry
+  case h_right => sorry
 
 def main : IO Unit := do
   let stdin ← IO.getStdin
