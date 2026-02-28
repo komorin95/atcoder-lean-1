@@ -41,3 +41,15 @@ abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
 theorem upper_is_monotone
   (pred : Nat → Prop)
   : monotone (upper pred) := by grind
+
+theorem upper_maximum_is_maximum
+  (n : Nat)
+  (pred : Nat → Prop)
+  (h_upper_max : maximum n (upper pred))
+  : maximum n pred :=
+by
+  constructor
+  case left =>
+    sorry
+  case right =>
+    grind
