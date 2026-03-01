@@ -145,7 +145,15 @@ by
     exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right
   case right =>
     exists betterScoreAchievingExample 0 input.a input.l input.k score
-    sorry
+    constructor
+    case left => sorry
+    case right =>
+      constructor
+      case left =>
+        exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).left
+      case right =>
+        unfold _root_.score
+        rfl
 
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score → betterScoreAchievable input score = true := sorry
