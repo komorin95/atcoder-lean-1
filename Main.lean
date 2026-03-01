@@ -76,13 +76,13 @@ def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   | [] => l - a0
   | a1 :: as => min (a1 - a0) (scoreRec a1 as l)
 
-def score (input : ProblemInput) (b : List Nat) :=
-  scoreRec 0 b input.l
+abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
+  List.Sublist b a
+  ∧ b.length = len
+  ∧ scoreRec a0 b l = score
 
 abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop :=
-  List.Sublist b input.a
-  ∧ b.length = input.k
-  ∧ score input b = s
+  scoreAchievablePartialBy 0 input.a input.l input.k s b
 
 abbrev scoreAchievable (input : ProblemInput) (s : Nat) : Prop :=
   ∃ b, scoreAchievableBy input b s
@@ -113,7 +113,8 @@ def betterScoreAchievingExample (a0 : Nat) (a : List Nat) (l len score : Nat) : 
 
 theorem betterScoreAchievingExampleValid (a0 : Nat) (a : List Nat) (l len score : Nat)
   : betterScoreAchievableRec a0 a l len score = true
-    → (betterScoreAchievingExample a0 a l len score).length = len
+    → List.Sublist (betterScoreAchievingExample a0 a l len score) a
+    ∧ (betterScoreAchievingExample a0 a l len score).length = len
     ∧ scoreRec a0 (betterScoreAchievingExample a0 a l len score) l >= score :=
 by
   fun_induction betterScoreAchievableRec
@@ -142,18 +143,16 @@ by
   constructor
   case left =>
     unfold betterScoreAchievable at a
-    exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right
+    exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.right
   case right =>
     exists betterScoreAchievingExample 0 input.a input.l input.k score
     constructor
-    case left => sorry
+    case left => exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).left
     case right =>
       constructor
       case left =>
-        exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).left
-      case right =>
-        unfold _root_.score
-        rfl
+        exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.left
+      case right => rfl
 
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score → betterScoreAchievable input score = true := sorry
