@@ -99,11 +99,63 @@ def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Boo
       else
         betterScoreAchievableRec a0 as l len score
 
+def betterScoreAchievingExample (a0 : Nat) (a : List Nat) (l len score : Nat) : List Nat :=
+  if len == 0 then
+    []
+  else
+    match a with
+    | [] => []
+    | a1 :: as =>
+      if a1 - a0 >= score then
+        a1 :: betterScoreAchievingExample a1 as l (len - 1) score
+      else
+        betterScoreAchievingExample a0 as l len score
+
+theorem betterScoreAchievingExampleValid (a0 : Nat) (a : List Nat) (l len score : Nat)
+  : betterScoreAchievableRec a0 a l len score = true
+    → (betterScoreAchievingExample a0 a l len score).length = len
+    ∧ scoreRec a0 (betterScoreAchievingExample a0 a l len score) l >= score :=
+by
+  fun_induction betterScoreAchievableRec
+  case case1 =>
+    unfold betterScoreAchievingExample
+    unfold scoreRec
+    grind
+  case case2 => grind
+  case case3 =>
+    unfold scoreRec
+    unfold betterScoreAchievingExample
+    grind
+  case case4 =>
+    unfold betterScoreAchievingExample
+    grind
+
+
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
 
+theorem betterScoreAchievableSound (input : ProblemInput) (score : Nat)
+  : betterScoreAchievable input score = true → upper (scoreAchievable input) score :=
+by
+  intro a
+  exists scoreRec 0 (betterScoreAchievingExample 0 input.a input.l input.k score) input.l
+  constructor
+  case left =>
+    unfold betterScoreAchievable at a
+    exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right
+  case right =>
+    exists betterScoreAchievingExample 0 input.a input.l input.k score
+    sorry
+
+theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
+  : upper (scoreAchievable input) score → betterScoreAchievable input score = true := sorry
+
 theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
-  : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true := sorry
+  : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true :=
+by
+  constructor
+  apply betterScoreAchievableComplete
+  apply betterScoreAchievableSound
 
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 1 input.l
