@@ -99,6 +99,16 @@ def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Boo
       else
         betterScoreAchievableRec a0 as l len score
 
+theorem betterScoreAchievableRecZeroCase (a0 : Nat) (a : List Nat) (l len : Nat)
+  : len <= a.length → betterScoreAchievableRec a0 a l len 0 = true :=
+by
+  fun_induction betterScoreAchievableRec with grind
+
+theorem betterScoreAchievableRecMaxCase (a0 : Nat) (a : List Nat) (l len score : Nat)
+  : score > l → betterScoreAchievableRec a0 a l len score = false :=
+by
+  fun_induction betterScoreAchievableRec with grind
+
 def betterScoreAchievingExample (a0 : Nat) (a : List Nat) (l len score : Nat) : List Nat :=
   if len == 0 then
     []
@@ -165,7 +175,7 @@ by
   apply betterScoreAchievableSound
 
 def solve (input : ProblemInput) : Nat :=
-  binarySearch (betterScoreAchievable input) 1 input.l
+  binarySearch (betterScoreAchievable input) 0 (input.l + 1)
 
 theorem solutionIsValid (input : ProblemInput)
   : maximum (solve input) (scoreAchievable input) :=
@@ -175,8 +185,16 @@ by
     intro
     apply Iff.symm
     apply betterScoreAchievableIsValid
-  case h_left => sorry
-  case h_right => sorry
+  case h_left =>
+    unfold betterScoreAchievable
+    apply betterScoreAchievableRecZeroCase
+    have : input.k <= input.n := input.cond_kn
+    have : input.a.length = input.n := input.cond_an
+    grind
+  case h_right =>
+    unfold betterScoreAchievable
+    apply betterScoreAchievableRecMaxCase
+    grind
 
 def main : IO Unit := do
   let stdin ← IO.getStdin
