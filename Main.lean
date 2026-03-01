@@ -141,7 +141,6 @@ by
     unfold betterScoreAchievingExample
     grind
 
-
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
 
@@ -164,8 +163,68 @@ by
         exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.left
       case right => rfl
 
+/-
+  「貪欲にやれば使えるはずのaiがbに使われていない」状況を処理するためには、
+  何らかの形でChainの仮定を使う必要がある
+-/
+
+theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
+  (b : List Nat) (lenb : Nat)
+  : scoreAchievablePartialBy a0 a l lenb s b
+  ∧ s >= score
+  ∧ lenb >= len
+  → betterScoreAchievableRec a0 a l len score = true :=
+by
+  intro h_premise
+  obtain ⟨h_p_partial, h_score⟩ := h_premise
+  obtain ⟨h_sublist, h_p_other⟩ := h_p_partial
+  revert a0
+  revert len
+  revert s
+  induction h_sublist
+  case intro.intro.slnil =>
+    unfold scoreRec
+    unfold betterScoreAchievableRec
+    grind
+  case intro.intro.cons l1 l2 _ _ a_ih =>
+    intro s
+    intro h_score
+    intro len a0
+    intro h_p_other
+    obtain ⟨h_len, h_scoreRec⟩ := h_p_other
+    unfold scoreRec at h_scoreRec
+    unfold betterScoreAchievableRec
+    split
+    case isTrue =>
+      sorry
+    case isFalse =>
+      split
+      case h_1 => grind
+      case h_2 a1 as heq =>
+        have eq_as : as = l2 := by grind
+        rw [eq_as]
+        split
+        case isTrue => sorry
+        case isFalse =>
+          apply a_ih s h_score len a0
+          constructor
+          exact h_len
+          unfold scoreRec
+          exact h_scoreRec
+  sorry
+
+
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
-  : upper (scoreAchievable input) score → betterScoreAchievable input score = true := sorry
+  : upper (scoreAchievable input) score → betterScoreAchievable input score = true :=
+by
+  intro h_u
+  obtain ⟨s, h⟩ := h_u
+  obtain ⟨h1, h2⟩ := h
+  obtain ⟨b, h3⟩ := h2
+  unfold scoreAchievableBy at h3
+  unfold betterScoreAchievable
+  apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b input.k
+  grind
 
 theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true :=
