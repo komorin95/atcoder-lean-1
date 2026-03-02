@@ -89,6 +89,20 @@ by
     have : l - a1 <= l - a0 := by grind
     grind
 
+theorem scoreRecAntiMonotone (a00 : Nat) (a0 : Nat) (a : List Nat) (l : Nat)
+  : a00 <= a0 → scoreRec a00 a l >= scoreRec a0 a l :=
+by
+  fun_induction scoreRec a00 a l
+  case case1 =>
+    unfold scoreRec
+    grind
+  case case2 =>
+    nth_rw 2 [scoreRec.eq_def]
+    simp
+    intro
+    apply Iff.mpr Nat.le_min
+    grind
+
 abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
   List.Sublist b a
   ∧ b.length = len
@@ -177,6 +191,86 @@ by
       case right => rfl
 
 
+def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat) : List Nat :=
+  match b with
+  | [] => []
+  | _ :: bs =>
+    match a with
+    | [] => []
+    | a1 :: as =>
+      if a1 - a0 >= score then
+        a1 :: modifyToGreedySolution a1 as l score bs
+      else
+        modifyToGreedySolution a0 as l score b
+
+#check Nat.le_min
+
+theorem ge_of_le {a b : Nat} : a <= b → b >= a := by grind
+
+theorem le_of_ge {a b : Nat} : a >= b → b <= a := by grind
+
+theorem modifyToGreedySolutionValid (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
+  : scoreAchievablePartialBy a0 a l b.length (scoreRec a0 b l) b
+  ∧ scoreRec a0 b l >= score
+  ∧ List.Chain (· < ·) a0 (a ++ [l])
+  → scoreRec a0 (modifyToGreedySolution a0 a l score b) l >= score :=
+by
+  fun_induction modifyToGreedySolution
+  case case1 => grind
+  case case2 => grind
+  case case3 a0 b1 bs a1 as h_if ih =>
+    intro h_pre
+    obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
+    unfold scoreRec
+    have : scoreRec a1 (modifyToGreedySolution a1 as l score bs) l >= score := by
+      apply ih
+      constructor
+      case left => grind
+      case right =>
+        constructor
+        case left =>
+          unfold scoreRec at h_scoreRec
+          obtain h_scoreRec_2 := ((Iff.mp Nat.le_min) (le_of_ge h_scoreRec)).right
+          simp
+          have a1b1 : a1 <= b1 := by
+            cases h_sublist
+            case cons =>
+              have h_sublist_2 : (b1 :: bs).Sublist (as ++ [l]) := by grind
+              cases h_chain
+              case cons h_chain_2 =>
+                obtain h := List.Chain.sublist h_chain_2 h_sublist_2
+                cases h
+                case cons => grind
+            case cons₂ => grind
+          obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
+          grind
+        case right =>
+          cases h_chain
+          case cons h => apply h
+    apply ge_of_le
+    apply Iff.mpr Nat.le_min
+    constructor <;> grind
+  case case4 a0 b1 bs a1 as h_if ih =>
+    intro h_pre
+    obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
+    apply ih
+    constructor
+    case left =>
+      constructor
+      case left =>
+        cases h_sublist
+        case cons => grind
+        case cons₂ =>
+          unfold scoreRec at h_scoreRec
+          obtain h := ge_of_le (Iff.mp Nat.le_min (le_of_ge h_scoreRec)).left
+          contradiction
+      case right => grind
+    case right =>
+      constructor
+      case left => exact h_scoreRec
+      case right =>
+        have h_sublist_2 : (as ++ [l]).Sublist (a1 :: as ++ [l]) := by grind
+        exact List.Chain.sublist h_chain h_sublist_2
 
 /-
   Sublistの帰納的定義に沿って証明できると思い込んでいたが、違った
