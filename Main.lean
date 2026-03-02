@@ -75,6 +75,20 @@ def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   | [] => l - a0
   | a1 :: as => min (a1 - a0) (scoreRec a1 as l)
 
+theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
+  : List.Chain (α := Nat) (· < ·) a0 (a ++ [l])
+  → scoreRec a0 a l <= l - a0 :=
+by
+  fun_induction scoreRec
+  case case1 => grind
+  case case2 a0 a1 as ih =>
+    intro h_pre
+    cases h_pre
+    case cons h_a0a1 h_a1asl
+    have : scoreRec a1 as l <= l - a1 := ih h_a1asl
+    have : l - a1 <= l - a0 := by grind
+    grind
+
 abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
   List.Sublist b a
   ∧ b.length = len
@@ -162,9 +176,13 @@ by
         exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.left
       case right => rfl
 
+
+
 /-
-  「貪欲にやれば使えるはずのaiがbに使われていない」状況を処理するためには、
-  何らかの形でChainの仮定を使う必要がある
+  Sublistの帰納的定義に沿って証明できると思い込んでいたが、違った
+  aに使える数があるのにbに使われているパターンの場合、Sublistの定義とは違ったパターンで
+  両方が小さくなる
+  貪欲解に作り直すプロセスの方をもう実装しちゃって、そのうえで性質の証明をした方がいいか？
 -/
 
 theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
@@ -183,11 +201,11 @@ by
   revert lenb
   revert s
   induction h_sublist
-  case intro.intro.slnil =>
+  case intro.intro.slnil => -- 両方[]だったパターン
     unfold scoreRec
     unfold betterScoreAchievableRec
     grind
-  case intro.intro.cons l1 l2 _ _ a_ih =>
+  case intro.intro.cons l1 l2 a1 p_sl a_ih => -- aの先頭がbに使われていなかったパターン
     intro s
     intro h_score
     intro lenb len
@@ -196,21 +214,28 @@ by
     intro h_chain
     intro h_p_other
     obtain ⟨h_len, h_scoreRec⟩ := h_p_other
-    unfold scoreRec at h_scoreRec
     unfold betterScoreAchievableRec
     split
-    case isTrue =>
-      sorry
-    case isFalse =>
+    case isTrue => -- len(lenbではなく)が0だったパターン
+      have : scoreRec a0 l1 l <= l - a0 := by
+        apply scoreRecUpperBound
+        apply List.Chain.sublist h_chain
+        grind
+      grind
+    case isFalse => -- len(lenbではなく)が正だったパターン
       split
       case h_1 => grind
-      case h_2 a1 as heq =>
+      case h_2 a11 as heq =>
         have eq_as : as = l2 := by grind
-        rw [eq_as]
+        have eq_a11 : a11 = a1 := by grind
+        rw [eq_as, eq_a11]
         split
-        case isTrue => sorry
-        case isFalse => sorry
-  sorry
+        case isTrue => -- aの先頭が実際には使える数だったパターン
+          sorry
+        case isFalse => -- aの先頭が使えないので読み飛ばすパターン
+          sorry
+  case intro.intro.intro.intro.cons₂ => -- aの先頭がbに使われていたパターン
+    sorry
 
 
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
