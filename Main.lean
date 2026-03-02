@@ -50,12 +50,7 @@ theorem binarySearchForNonmonotone
   : maximum (binarySearch pred left right) pred0 :=
 by
   apply upperMaximumIsMaximum
-  have pred_calc_upper : (upper pred0) = (pred · = true) := by grind
-  rw [pred_calc_upper]
-  apply binarySearchIsValid
-  grind
-  grind
-  grind
+  grind [binarySearchIsValid]
 
 -- BinarySearch.lean end
 
@@ -79,29 +74,12 @@ theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
   : List.Chain (α := Nat) (· < ·) a0 (a ++ [l])
   → scoreRec a0 a l <= l - a0 :=
 by
-  fun_induction scoreRec
-  case case1 => grind
-  case case2 a0 a1 as ih =>
-    intro h_pre
-    cases h_pre
-    case cons h_a0a1 h_a1asl
-    have : scoreRec a1 as l <= l - a1 := ih h_a1asl
-    have : l - a1 <= l - a0 := by grind
-    grind
+  fun_induction scoreRec with (simp <;> try grind)
 
 theorem scoreRecAntiMonotone (a00 : Nat) (a0 : Nat) (a : List Nat) (l : Nat)
   : a00 <= a0 → scoreRec a00 a l >= scoreRec a0 a l :=
 by
-  fun_induction scoreRec a00 a l
-  case case1 =>
-    unfold scoreRec
-    grind
-  case case2 =>
-    nth_rw 2 [scoreRec.eq_def]
-    simp
-    intro
-    apply Iff.mpr Nat.le_min
-    grind
+  fun_induction scoreRec a00 a l with grind [scoreRec]
 
 abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
   List.Sublist b a
@@ -157,16 +135,12 @@ by
   fun_induction betterScoreAchievableRec
   case case1 =>
     unfold betterScoreAchievingExample
-    unfold scoreRec
-    grind
+    grind [scoreRec, betterScoreAchievingExample]
   case case2 => grind
   case case3 =>
-    unfold scoreRec
-    unfold betterScoreAchievingExample
-    grind
+    grind [scoreRec, betterScoreAchievingExample]
   case case4 =>
-    unfold betterScoreAchievingExample
-    grind
+    grind [betterScoreAchievingExample]
 
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
@@ -176,46 +150,8 @@ theorem betterScoreAchievableSound (input : ProblemInput) (score : Nat)
 by
   intro a
   exists scoreRec 0 (betterScoreAchievingExample 0 input.a input.l input.k score) input.l
-  constructor
-  case left =>
-    unfold betterScoreAchievable at a
-    exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.right
-  case right =>
-    exists betterScoreAchievingExample 0 input.a input.l input.k score
-    constructor
-    case left => exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).left
-    case right =>
-      constructor
-      case left =>
-        exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.left
-      case right => rfl
-
-def betterScoreAchievableRecWithB (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat) : Bool :=
-  match b with
-  | [] => l - a0 >= score
-  | _ :: bs =>
-    match a with
-    | [] => false
-    | a1 :: as =>
-      if a1 - a0 >= score then
-        betterScoreAchievableRecWithB a1 as l score bs
-      else
-        betterScoreAchievableRecWithB a0 as l score b
-
-theorem betterScoreAchievableRecWithBValid (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
-  : betterScoreAchievableRecWithB a0 a l score b = betterScoreAchievableRec a0 a l b.length score :=
-by
-  fun_induction betterScoreAchievableRecWithB
-  case case1 =>
-    unfold betterScoreAchievableRec; simp
-  case case2 =>
-    unfold betterScoreAchievableRec; simp
-  case case3 =>
-    unfold betterScoreAchievableRec; simp
-    split <;> grind
-  case case4 =>
-    unfold betterScoreAchievableRec; simp
-    split <;> grind
+  have h := betterScoreAchievingExampleValid 0 input.a input.l input.k score a
+  grind
 
 def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat) : List Nat :=
   match b with
@@ -277,7 +213,7 @@ by
           grind
         case right =>
           cases h_chain
-          case cons h => apply h
+          case cons h => exact h
     case isFalse => contradiction
   case case4 a0 b1 bs a1 as h_if ih =>
     intro h_pre
