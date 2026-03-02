@@ -67,9 +67,8 @@ structure ProblemInput where
   cond_kn : k <= n
   a : List Nat
   cond_an : a.length = n
-  cond_a : List.Chain (α := Nat) (· < ·) 0 a
   l : Nat
-  cond_l : a.getLast (by grind) < l
+  cond_al : List.Chain (α := Nat) (· < ·) 0 (a ++ [l])
 
 def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   match a with
@@ -173,13 +172,15 @@ theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score 
   : scoreAchievablePartialBy a0 a l lenb s b
   ∧ s >= score
   ∧ lenb >= len
+  ∧ List.Chain (· < ·) a0 (a ++ [l])
   → betterScoreAchievableRec a0 a l len score = true :=
 by
   intro h_premise
-  obtain ⟨h_p_partial, h_score⟩ := h_premise
+  obtain ⟨h_p_partial, h_score, h_lenb, h_chain⟩ := h_premise
   obtain ⟨h_sublist, h_p_other⟩ := h_p_partial
   revert a0
   revert len
+  revert lenb
   revert s
   induction h_sublist
   case intro.intro.slnil =>
@@ -189,7 +190,10 @@ by
   case intro.intro.cons l1 l2 _ _ a_ih =>
     intro s
     intro h_score
-    intro len a0
+    intro lenb len
+    intro h_lenb
+    intro a0
+    intro h_chain
     intro h_p_other
     obtain ⟨h_len, h_scoreRec⟩ := h_p_other
     unfold scoreRec at h_scoreRec
@@ -205,12 +209,7 @@ by
         rw [eq_as]
         split
         case isTrue => sorry
-        case isFalse =>
-          apply a_ih s h_score len a0
-          constructor
-          exact h_len
-          unfold scoreRec
-          exact h_scoreRec
+        case isFalse => sorry
   sorry
 
 
@@ -224,6 +223,7 @@ by
   unfold scoreAchievableBy at h3
   unfold betterScoreAchievable
   apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b input.k
+  have : List.Chain (· < ·) 0 (input.a ++ [input.l]) := input.cond_al
   grind
 
 theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
@@ -269,8 +269,9 @@ def main : IO Unit := do
     intokens[i.val + 3]!.trim.toNat!
   -- TODO: この仮定は人工的に与えなくてすむはず
   if cond_an : a.length != n then unreachable! else
-  if cond_a : ¬ List.Chain (α := Nat) (· < ·) 0 a then unreachable! else
-  if cond_l : a.getLast (by grind) >= l then unreachable! else
+  -- if cond_a : ¬ List.Chain (α := Nat) (· < ·) 0 a then unreachable! else
+  -- if cond_l : a.getLast (by grind) >= l then unreachable! else
+  if cond_al : ¬ List.Chain (α := Nat) (· < ·) 0 (a ++ [l]) then unreachable! else
   let input : ProblemInput := {
     n := n
     cond_n := by grind
@@ -279,9 +280,8 @@ def main : IO Unit := do
     cond_kn := by grind
     a := a
     cond_an := by grind
-    cond_a := by grind
     l := l
-    cond_l := by grind
+    cond_al := by grind
   }
   let solution := solve input
   IO.println s!"{solution}"
