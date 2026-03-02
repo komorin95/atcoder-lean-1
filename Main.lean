@@ -65,6 +65,7 @@ structure ProblemInput where
   l : Nat
   cond_al : List.Chain (α := Nat) (· < ·) 0 (a ++ [l])
 
+@[grind]
 def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   match a with
   | [] => l - a0
@@ -135,10 +136,10 @@ by
   fun_induction betterScoreAchievableRec
   case case1 =>
     unfold betterScoreAchievingExample
-    grind [scoreRec, betterScoreAchievingExample]
+    grind [betterScoreAchievingExample]
   case case2 => grind
   case case3 =>
-    grind [scoreRec, betterScoreAchievingExample]
+    grind [betterScoreAchievingExample]
   case case4 =>
     grind [betterScoreAchievingExample]
 
@@ -178,7 +179,6 @@ by
   fun_induction modifyToGreedySolution a0 a l score b
   case case1 =>
     unfold betterScoreAchievableRec
-    unfold scoreRec
     grind
   case case2 =>
     unfold betterScoreAchievableRec
@@ -186,63 +186,34 @@ by
   case case3 a0 b1 bs a1 as h_if ih =>
     intro h_pre
     obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
-    unfold betterScoreAchievableRec
-    simp
-    split
-    case isTrue =>
+    cases h_chain
+    case cons h_chain_2 =>
+      unfold betterScoreAchievableRec
+      simp [h_if]
       apply ih
-      constructor
-      case left => grind
-      case right =>
-        constructor
-        case left =>
-          unfold scoreRec at h_scoreRec
-          obtain h_scoreRec_2 := ((Iff.mp Nat.le_min) (le_of_ge h_scoreRec)).right
-          simp
-          have a1b1 : a1 <= b1 := by
-            cases h_sublist
-            case cons =>
-              have h_sublist_2 : (b1 :: bs).Sublist (as ++ [l]) := by grind
-              cases h_chain
-              case cons h_chain_2 =>
-                obtain h := List.Chain.sublist h_chain_2 h_sublist_2
-                cases h
-                case cons => grind
-            case cons₂ => grind
-          obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
-          grind
-        case right =>
-          cases h_chain
-          case cons h => exact h
-    case isFalse => contradiction
-  case case4 a0 b1 bs a1 as h_if ih =>
-    intro h_pre
-    obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
-    unfold betterScoreAchievableRec
-    simp
-    split
-    case isTrue => contradiction
-    case isFalse =>
-      have h_len_eq : bs.length + 1 = (b1 :: bs).length := by simp
-      rw [h_len_eq]
-      apply ih
-      constructor
-      case left =>
-        constructor
-        case left =>
-          cases h_sublist
+      unfold scoreRec at h_scoreRec
+      obtain h_scoreRec_2 := ((Iff.mp Nat.le_min) (le_of_ge h_scoreRec)).right
+      simp
+      have a1b1 : a1 <= b1 := by
+        cases h_sublist
+        case cons =>
+          have h_sublist_2 : (b1 :: bs).Sublist (as ++ [l]) := by grind
+          obtain h := List.Chain.sublist h_chain_2 h_sublist_2
+          cases h
           case cons => grind
-          case cons₂ =>
-            unfold scoreRec at h_scoreRec
-            obtain h := ge_of_le (Iff.mp Nat.le_min (le_of_ge h_scoreRec)).left
-            contradiction
-        case right => grind
-      case right =>
-        constructor
-        case left => exact h_scoreRec
-        case right =>
-          have h_sublist_2 : (as ++ [l]).Sublist (a1 :: as ++ [l]) := by grind
-          exact List.Chain.sublist h_chain h_sublist_2
+        case cons₂ => grind
+      obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
+      simp_all
+      grind
+  case case4 a1 as _ _ =>
+    intro h_pre
+    obtain ⟨_, _, h_chain⟩ := h_pre
+    simp
+    have h_sublist_2 : (as ++ [l]).Sublist (a1 :: as ++ [l]) := by grind
+    have := List.Chain.sublist h_chain h_sublist_2
+    grind [Nat.le_min, betterScoreAchievableRec]
+
+#check List.Chain.rel
 
 theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
   (b : List Nat)
