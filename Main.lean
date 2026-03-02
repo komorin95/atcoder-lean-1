@@ -190,6 +190,32 @@ by
         exact (betterScoreAchievingExampleValid 0 input.a input.l input.k score a).right.left
       case right => rfl
 
+def betterScoreAchievableRecWithB (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat) : Bool :=
+  match b with
+  | [] => l - a0 >= score
+  | _ :: bs =>
+    match a with
+    | [] => false
+    | a1 :: as =>
+      if a1 - a0 >= score then
+        betterScoreAchievableRecWithB a1 as l score bs
+      else
+        betterScoreAchievableRecWithB a0 as l score b
+
+theorem betterScoreAchievableRecWithBValid (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
+  : betterScoreAchievableRecWithB a0 a l score b = betterScoreAchievableRec a0 a l b.length score :=
+by
+  fun_induction betterScoreAchievableRecWithB
+  case case1 =>
+    unfold betterScoreAchievableRec; simp
+  case case2 =>
+    unfold betterScoreAchievableRec; simp
+  case case3 =>
+    unfold betterScoreAchievableRec; simp
+    split <;> grind
+  case case4 =>
+    unfold betterScoreAchievableRec; simp
+    split <;> grind
 
 def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat) : List Nat :=
   match b with
@@ -209,20 +235,27 @@ theorem ge_of_le {a b : Nat} : a <= b → b >= a := by grind
 
 theorem le_of_ge {a b : Nat} : a >= b → b <= a := by grind
 
-theorem modifyToGreedySolutionValid (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
+theorem betterScoreAchievableRecCompleteWithGuide (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
   : scoreAchievablePartialBy a0 a l b.length (scoreRec a0 b l) b
   ∧ scoreRec a0 b l >= score
   ∧ List.Chain (· < ·) a0 (a ++ [l])
-  → scoreRec a0 (modifyToGreedySolution a0 a l score b) l >= score :=
+  → betterScoreAchievableRec a0 a l (b.length) score = true :=
 by
-  fun_induction modifyToGreedySolution
-  case case1 => grind
-  case case2 => grind
+  fun_induction modifyToGreedySolution a0 a l score b
+  case case1 =>
+    unfold betterScoreAchievableRec
+    unfold scoreRec
+    grind
+  case case2 =>
+    unfold betterScoreAchievableRec
+    simp
   case case3 a0 b1 bs a1 as h_if ih =>
     intro h_pre
     obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
-    unfold scoreRec
-    have : scoreRec a1 (modifyToGreedySolution a1 as l score bs) l >= score := by
+    unfold betterScoreAchievableRec
+    simp
+    split
+    case isTrue =>
       apply ih
       constructor
       case left => grind
@@ -247,90 +280,48 @@ by
         case right =>
           cases h_chain
           case cons h => apply h
-    apply ge_of_le
-    apply Iff.mpr Nat.le_min
-    constructor <;> grind
+    case isFalse => contradiction
   case case4 a0 b1 bs a1 as h_if ih =>
     intro h_pre
     obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
-    apply ih
-    constructor
-    case left =>
+    unfold betterScoreAchievableRec
+    simp
+    split
+    case isTrue => contradiction
+    case isFalse =>
+      have h_len_eq : bs.length + 1 = (b1 :: bs).length := by simp
+      rw [h_len_eq]
+      apply ih
       constructor
       case left =>
-        cases h_sublist
-        case cons => grind
-        case cons₂ =>
-          unfold scoreRec at h_scoreRec
-          obtain h := ge_of_le (Iff.mp Nat.le_min (le_of_ge h_scoreRec)).left
-          contradiction
-      case right => grind
-    case right =>
-      constructor
-      case left => exact h_scoreRec
+        constructor
+        case left =>
+          cases h_sublist
+          case cons => grind
+          case cons₂ =>
+            unfold scoreRec at h_scoreRec
+            obtain h := ge_of_le (Iff.mp Nat.le_min (le_of_ge h_scoreRec)).left
+            contradiction
+        case right => grind
       case right =>
-        have h_sublist_2 : (as ++ [l]).Sublist (a1 :: as ++ [l]) := by grind
-        exact List.Chain.sublist h_chain h_sublist_2
-
-/-
-  Sublistの帰納的定義に沿って証明できると思い込んでいたが、違った
-  aに使える数があるのにbに使われているパターンの場合、Sublistの定義とは違ったパターンで
-  両方が小さくなる
-  貪欲解に作り直すプロセスの方をもう実装しちゃって、そのうえで性質の証明をした方がいいか？
--/
+        constructor
+        case left => exact h_scoreRec
+        case right =>
+          have h_sublist_2 : (as ++ [l]).Sublist (a1 :: as ++ [l]) := by grind
+          exact List.Chain.sublist h_chain h_sublist_2
 
 theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
-  (b : List Nat) (lenb : Nat)
-  : scoreAchievablePartialBy a0 a l lenb s b
+  (b : List Nat)
+  : scoreAchievablePartialBy a0 a l len s b
   ∧ s >= score
-  ∧ lenb >= len
   ∧ List.Chain (· < ·) a0 (a ++ [l])
   → betterScoreAchievableRec a0 a l len score = true :=
 by
-  intro h_premise
-  obtain ⟨h_p_partial, h_score, h_lenb, h_chain⟩ := h_premise
-  obtain ⟨h_sublist, h_p_other⟩ := h_p_partial
-  revert a0
-  revert len
-  revert lenb
-  revert s
-  induction h_sublist
-  case intro.intro.slnil => -- 両方[]だったパターン
-    unfold scoreRec
-    unfold betterScoreAchievableRec
-    grind
-  case intro.intro.cons l1 l2 a1 p_sl a_ih => -- aの先頭がbに使われていなかったパターン
-    intro s
-    intro h_score
-    intro lenb len
-    intro h_lenb
-    intro a0
-    intro h_chain
-    intro h_p_other
-    obtain ⟨h_len, h_scoreRec⟩ := h_p_other
-    unfold betterScoreAchievableRec
-    split
-    case isTrue => -- len(lenbではなく)が0だったパターン
-      have : scoreRec a0 l1 l <= l - a0 := by
-        apply scoreRecUpperBound
-        apply List.Chain.sublist h_chain
-        grind
-      grind
-    case isFalse => -- len(lenbではなく)が正だったパターン
-      split
-      case h_1 => grind
-      case h_2 a11 as heq =>
-        have eq_as : as = l2 := by grind
-        have eq_a11 : a11 = a1 := by grind
-        rw [eq_as, eq_a11]
-        split
-        case isTrue => -- aの先頭が実際には使える数だったパターン
-          sorry
-        case isFalse => -- aの先頭が使えないので読み飛ばすパターン
-          sorry
-  case intro.intro.intro.intro.cons₂ => -- aの先頭がbに使われていたパターン
-    sorry
-
+  intro h_pre
+  obtain h_eq_len := h_pre.left.right.left
+  rw [← h_eq_len]
+  apply betterScoreAchievableRecCompleteWithGuide a0 a l score b
+  grind
 
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score → betterScoreAchievable input score = true :=
@@ -341,7 +332,7 @@ by
   obtain ⟨b, h3⟩ := h2
   unfold scoreAchievableBy at h3
   unfold betterScoreAchievable
-  apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b input.k
+  apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b
   have : List.Chain (· < ·) 0 (input.a ++ [input.l]) := input.cond_al
   grind
 
