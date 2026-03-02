@@ -229,8 +229,6 @@ def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List N
       else
         modifyToGreedySolution a0 as l score b
 
-#check Nat.le_min
-
 theorem ge_of_le {a b : Nat} : a <= b → b >= a := by grind
 
 theorem le_of_ge {a b : Nat} : a >= b → b <= a := by grind
