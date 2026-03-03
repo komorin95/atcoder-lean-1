@@ -158,10 +158,6 @@ def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List N
       else
         modifyToGreedySolution a0 as l score b
 
-theorem ge_of_le {a b : Nat} : a <= b → b >= a := by grind
-
-theorem le_of_ge {a b : Nat} : a >= b → b <= a := by grind
-
 theorem betterScoreAchievableRecCompleteWithGuide (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
   : scoreAchievablePartialBy a0 a l b.length (scoreRec a0 b l) b
   ∧ scoreRec a0 b l >= score
@@ -192,8 +188,8 @@ by
           cases h
           case cons => grind
         case cons₂ => grind
-      obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
       simp_all
+      obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
       grind
   case case4 a1 as _ _ =>
     intro h_pre
@@ -202,8 +198,6 @@ by
     have h_sublist_2 : (as ++ [l]).Sublist (a1 :: as ++ [l]) := by grind
     have := List.Chain.sublist h_chain h_sublist_2
     grind [Nat.le_min, betterScoreAchievableRec]
-
-#check List.Chain.rel
 
 theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
   (b : List Nat)
@@ -222,13 +216,11 @@ theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score → betterScoreAchievable input score = true :=
 by
   intro h_u
-  obtain ⟨s, h⟩ := h_u
-  obtain ⟨h1, h2⟩ := h
-  obtain ⟨b, h3⟩ := h2
+  obtain ⟨s, _, b, h3⟩ := h_u
+  have : List.Chain (· < ·) 0 (input.a ++ [input.l]) := input.cond_al
   unfold scoreAchievableBy at h3
   unfold betterScoreAchievable
   apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b
-  have : List.Chain (· < ·) 0 (input.a ++ [input.l]) := input.cond_al
   grind
 
 theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
