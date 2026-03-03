@@ -89,7 +89,10 @@ abbrev abbrevSolutionIsValid (input : ProblemInput) (solution : ProblemInput →
 /-
   二分探索を行い、predがtrueからfalseに変わる点をleftとrightの間で探す。
 
-  再帰の形になっているが、「末尾再帰最適化」と呼ばれる機構により
+  再帰の形になっているが、「末尾再帰最適化」(tail-call optimization)
+  と呼ばれる機構によりループにコンパイルされるので、
+  コールスタックを大きく消費する心配はない。
+  一方で、定義が再帰の形になっていることで、性質の証明は行いやすくなる。
 -/
 def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
@@ -102,6 +105,10 @@ def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
       binarySearch pred left mid
 
 /-
+  「a0からlの座標を占めるようかんを、aから選んだlen箇所で切ることで、
+  score以上のスコアが実現できるか」を貪欲法で判定する。
+
+  こちらも末尾再帰になっている。
 -/
 def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Bool :=
   if len == 0 then
@@ -115,12 +122,35 @@ def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Boo
       else
         betterScoreAchievableRec a0 as l len score
 
+/-
+  「inputのもとで、score以上のスコアが実現できるか？」を貪欲法で判定する。
+-/
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
 
+/-
+  貪欲法によるスコア上界の判定と二分探索を組み合わせ、最大スコアを求める。
+-/
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 0 (input.l + 1)
 
+/-
+  エントリーポイント。
+
+  IOというのはHaskellなどにも登場する「IOモナド」で、
+  この関数がデータの計算以外に入出力という副作用を持つことを示す。
+  doという表記の役割もHaskellのものと同様。
+
+  標準入力をパースしてsolveに与え、出力をprintするのに加え、
+  問題の条件に入力が合っているかも判定している。
+  ここで使われている
+    if cond : x > y then ...
+  という表記は dependent if-then-else と呼ばれ、
+  then節内では変数condには「その条件が成り立つことの証明」が束縛される
+  (命題の証明とは型を持つ項であることを思い出してほしい)。
+  今回はelse節側がメインで、条件が成り立たないことの証明が得られる。
+  Leanにおける項と証明の絡み合いの一つの形が見える。
+-/
 def main : IO Unit := do
   let stdin ← IO.getStdin
   let instr ← stdin.readToEnd
