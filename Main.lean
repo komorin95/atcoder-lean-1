@@ -13,7 +13,7 @@ import Mathlib.Data.List.Chain
   入力と条件
 
   多くの定理証明支援系では、「命題Pの証明h」は「型Pに属する項h」と同一視される。
-  Leanではさらに、実行時にも項として証明が必要になることがある
+  Leanではさらに、関数の定義内でも項として証明が必要になることがある
   (典型的なのは配列などの添え字アクセス)。
   そこで入力データとそれらが満たす条件はここでは一緒に扱うことにする。
 
@@ -34,6 +34,11 @@ structure ProblemInput where
   a0からlの座標を占めるようかんの切れ端を、aの各座標で切ったときの、ようかんの最小サイズ。
 
   後に備えて、再帰的に定義しておく。
+  なお、Leanで再帰関数を定義すると、自動的に「必ず有限の回数で停止する」ことを示そうとする。
+  明示的にその根拠を与えることもできる。
+  根拠を明示せず、自動証明もできない場合、エラーとなって定義はできない。
+  partialキーワードでこれを回避することもできるが、
+  その場合はその関数についての性質の証明はほぼ不可能になる。
 -/
 @[grind]
 def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
@@ -130,6 +135,8 @@ def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
 
 /-
   貪欲法によるスコア上界の判定と二分探索を組み合わせ、最大スコアを求める。
+
+  この関数の正当性が今回の目標になる。
 -/
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 0 (input.l + 1)
@@ -184,9 +191,36 @@ def main : IO Unit := do
   ==================正当性証明==================
 -/
 
+/-
+  「predは"単調減少"である」
+
+  すなわち、trueであるような自然数の集合は下に閉じている。
+  標準ライブラリにあるので移行したい。
+-/
 abbrev monotone (pred : Nat → Prop) : Prop :=
   ∀ m n, (m <= n) → pred n → pred m
 
+/-
+  二分探索が正当であることの証明。
+
+  多くの定理証明支援系では、タクティクと呼ばれるコマンドを繰り返して証明を行う。
+  Leanではbyキーワードによりタクティクの列が開始される。
+
+  ここではまず fun_induction タクティクを用いて、
+  関数の再帰呼び出しの流れに沿った帰納法で証明を行う。
+  関数の再帰は必ずいつか止まることが内部的に自動で示されているので、
+  このタクティクでは内部的にそれを利用することになる。
+
+  本来は各ベースケース・再帰呼び出しケースで証明を進める必要があるが、
+  今回は with grind とし、「各ケースでgrindを使え」と指示した。
+  grind タクティクはSMTソルバーの技法にヒントを得て作られた自動証明タクティクである。
+  Leanプロジェクトを立ち上げたのがSMTソルバー「Z3」の開発者であったことも考えると、
+  grindはある意味Leanの看板タクティクかもしれない。
+  実際、今回の証明くらいならすぐに終わらせられるくらいには強力。
+
+  二分探索を成り立たせるための仮定はここで前提条件として置いたが、
+  プログラム側の引数にすることもできるだろう。
+-/
 theorem binarySearchIsValid
   (pred : Nat → Bool) (left : Nat) (right : Nat)
   (h_monotone : monotone (pred · = true))
@@ -196,6 +230,9 @@ theorem binarySearchIsValid
 by
   fun_induction binarySearch with grind
 
+/-
+  「n以上の数でpredが成り立つようなものが存在する」
+-/
 abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
   ∃ m, m >= n ∧ pred m
 
@@ -220,8 +257,6 @@ theorem binarySearchForNonmonotone
 by
   apply upperMaximumIsMaximum
   grind [binarySearchIsValid]
-
--- BinarySearch.lean end
 
 theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
   : List.Chain (α := Nat) (· < ·) a0 (a ++ [l])
