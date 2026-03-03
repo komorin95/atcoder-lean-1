@@ -1,7 +1,96 @@
+/-
+  競プロ典型90問1日目「Yokan Party」の検証済み解答
+  問題設定・解答プログラム・正当性証明 の順に示す
+-/
+
 import Mathlib.Data.List.Chain
 
--- BinarySearch.lean start
+/-
+  ==================問題設定==================
+-/
 
+/-
+  入力と条件
+
+  多くの定理証明支援系では、「命題Pの証明h」は「型Pに属する項h」と同一視される。
+  Leanではさらに、実行時にも項として証明が必要になることがある
+  (典型的なのは配列などの添え字アクセス)。
+  そこで入力データとそれらが満たす条件はここでは一緒に扱うことにする。
+
+  数列についての不等式条件を表すのに List.Chain (Mathlib.Data.List.Chain より)を用いた。
+-/
+structure ProblemInput where
+  n : Nat
+  cond_n : n <= 100_000
+  k : Nat
+  cond_k : 1 <= k
+  cond_kn : k <= n
+  a : List Nat
+  cond_an : a.length = n
+  l : Nat
+  cond_al : List.Chain (α := Nat) (· < ·) 0 (a ++ [l])
+
+/-
+  a0からlの座標を占めるようかんの切れ端を、aの各座標で切ったときの、ようかんの最小サイズ。
+
+  後に備えて、再帰的に定義しておく。
+-/
+@[grind]
+def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
+  match a with
+  | [] => l - a0
+  | a1 :: as => min (a1 - a0) (scoreRec a1 as l)
+
+/-
+  「a0からlの座標を占めるようかんを、aから選んだlen箇所の位置bで切ることで、
+  スコアscoreが実現する」
+
+  scoreRecに合わせて、一般化した形で定義しておく。
+-/
+abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
+  List.Sublist b a
+  ∧ b.length = len
+  ∧ scoreRec a0 b l = score
+
+/-
+  「inputのもとで、bの各座標で切ればスコアsが実現する」
+-/
+abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop :=
+  scoreAchievablePartialBy 0 input.a input.l input.k s b
+
+/-
+  「inputのもとでスコアsが実現可能である」
+-/
+abbrev scoreAchievable (input : ProblemInput) (s : Nat) : Prop :=
+  ∃ b, scoreAchievableBy input b s
+
+/-
+  「nはpredを満たす最大の自然数である」
+-/
+abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
+  pred n ∧ ∀ m, (m > n) → ¬ pred m
+
+/-
+  「解答が正当である」
+
+  すなわち、solutionにinputを与えて計算させたスコアsが、
+  「inputのもとでスコアsが実現可能である」を満たす最大のsである。
+
+  以下ではこのsolutionに入れるべきsolve関数を与え、
+  thmSolutionIsValidでこれを証明する。
+-/
+abbrev abbrevSolutionIsValid (input : ProblemInput) (solution : ProblemInput → Nat) :=
+  maximum (solution input) (scoreAchievable input)
+
+/-
+  ==================解答プログラム==================
+-/
+
+/-
+  二分探索を行い、predがtrueからfalseに変わる点をleftとrightの間で探す。
+
+  再帰の形になっているが、「末尾再帰最適化」と呼ばれる機構により
+-/
 def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
     left
@@ -12,8 +101,58 @@ def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
     else
       binarySearch pred left mid
 
-abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
-  pred n ∧ ∀ m, (m > n) → ¬ pred m
+/-
+-/
+def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Bool :=
+  if len == 0 then
+    l - a0 >= score
+  else
+    match a with
+    | [] => false
+    | a1 :: as =>
+      if a1 - a0 >= score then
+        betterScoreAchievableRec a1 as l (len - 1) score
+      else
+        betterScoreAchievableRec a0 as l len score
+
+def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
+  betterScoreAchievableRec 0 input.a input.l input.k score
+
+def solve (input : ProblemInput) : Nat :=
+  binarySearch (betterScoreAchievable input) 0 (input.l + 1)
+
+def main : IO Unit := do
+  let stdin ← IO.getStdin
+  let instr ← stdin.readToEnd
+  let intokens := (instr.split (·.isWhitespace)).toArray
+  let n := intokens[0]!.trim.toNat!
+  if cond_n : n > 100_000 then unreachable! else
+  let l := intokens[1]!.trim.toNat!
+  let k := intokens[2]!.trim.toNat!
+  if cond_k : k < 1 then unreachable! else
+  if cond_kn : k > n then unreachable! else
+  let a := List.ofFn (n := n) fun i =>
+    intokens[i.val + 3]!.trim.toNat!
+  -- TODO: この仮定は人工的に与えなくてすむはず
+  if cond_an : a.length != n then unreachable! else
+  if cond_al : ¬ List.Chain (α := Nat) (· < ·) 0 (a ++ [l]) then unreachable! else
+  let input : ProblemInput := {
+    n := n
+    cond_n := by grind
+    k := k
+    cond_k := by grind
+    cond_kn := by grind
+    a := a
+    cond_an := by grind
+    l := l
+    cond_al := by grind
+  }
+  let solution := solve input
+  IO.println s!"{solution}"
+
+/-
+  ==================正当性証明==================
+-/
 
 abbrev monotone (pred : Nat → Prop) : Prop :=
   ∀ m n, (m <= n) → pred n → pred m
@@ -54,23 +193,6 @@ by
 
 -- BinarySearch.lean end
 
-structure ProblemInput where
-  n : Nat
-  cond_n : n <= 100_000
-  k : Nat
-  cond_k : 1 <= k
-  cond_kn : k <= n
-  a : List Nat
-  cond_an : a.length = n
-  l : Nat
-  cond_al : List.Chain (α := Nat) (· < ·) 0 (a ++ [l])
-
-@[grind]
-def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
-  match a with
-  | [] => l - a0
-  | a1 :: as => min (a1 - a0) (scoreRec a1 as l)
-
 theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
   : List.Chain (α := Nat) (· < ·) a0 (a ++ [l])
   → scoreRec a0 a l <= l - a0 :=
@@ -81,29 +203,6 @@ theorem scoreRecAntiMonotone (a00 : Nat) (a0 : Nat) (a : List Nat) (l : Nat)
   : a00 <= a0 → scoreRec a00 a l >= scoreRec a0 a l :=
 by
   fun_induction scoreRec a00 a l with grind [scoreRec]
-
-abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
-  List.Sublist b a
-  ∧ b.length = len
-  ∧ scoreRec a0 b l = score
-
-abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop :=
-  scoreAchievablePartialBy 0 input.a input.l input.k s b
-
-abbrev scoreAchievable (input : ProblemInput) (s : Nat) : Prop :=
-  ∃ b, scoreAchievableBy input b s
-
-def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Bool :=
-  if len == 0 then
-    l - a0 >= score
-  else
-    match a with
-    | [] => false
-    | a1 :: as =>
-      if a1 - a0 >= score then
-        betterScoreAchievableRec a1 as l (len - 1) score
-      else
-        betterScoreAchievableRec a0 as l len score
 
 theorem betterScoreAchievableRecZeroCase (a0 : Nat) (a : List Nat) (l len : Nat)
   : len <= a.length → betterScoreAchievableRec a0 a l len 0 = true :=
@@ -134,9 +233,6 @@ theorem betterScoreAchievingExampleValid (a0 : Nat) (a : List Nat) (l len score 
     ∧ scoreRec a0 (betterScoreAchievingExample a0 a l len score) l >= score :=
 by
   fun_induction betterScoreAchievableRec with (unfold betterScoreAchievingExample; grind)
-
-def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
-  betterScoreAchievableRec 0 input.a input.l input.k score
 
 theorem betterScoreAchievableSound (input : ProblemInput) (score : Nat)
   : betterScoreAchievable input score = true → upper (scoreAchievable input) score :=
@@ -230,11 +326,8 @@ by
   apply betterScoreAchievableComplete
   apply betterScoreAchievableSound
 
-def solve (input : ProblemInput) : Nat :=
-  binarySearch (betterScoreAchievable input) 0 (input.l + 1)
-
-theorem solutionIsValid (input : ProblemInput)
-  : maximum (solve input) (scoreAchievable input) :=
+theorem thmSolutionIsValid (input : ProblemInput)
+  : abbrevSolutionIsValid input solve :=
 by
   apply binarySearchForNonmonotone
   case h_pred =>
@@ -252,31 +345,11 @@ by
     apply betterScoreAchievableRecMaxCase
     grind
 
-def main : IO Unit := do
-  let stdin ← IO.getStdin
-  let instr ← stdin.readToEnd
-  let intokens := (instr.split (·.isWhitespace)).toArray
-  let n := intokens[0]!.trim.toNat!
-  if cond_n : n > 100_000 then unreachable! else
-  let l := intokens[1]!.trim.toNat!
-  let k := intokens[2]!.trim.toNat!
-  if cond_k : k < 1 then unreachable! else
-  if cond_kn : k > n then unreachable! else
-  let a := List.ofFn (n := n) fun i =>
-    intokens[i.val + 3]!.trim.toNat!
-  -- TODO: この仮定は人工的に与えなくてすむはず
-  if cond_an : a.length != n then unreachable! else
-  if cond_al : ¬ List.Chain (α := Nat) (· < ·) 0 (a ++ [l]) then unreachable! else
-  let input : ProblemInput := {
-    n := n
-    cond_n := by grind
-    k := k
-    cond_k := by grind
-    cond_kn := by grind
-    a := a
-    cond_an := by grind
-    l := l
-    cond_al := by grind
-  }
-  let solution := solve input
-  IO.println s!"{solution}"
+
+
+/-
+  TODO
+
+  - Leanのdoc commentの書き方をちゃんと調べてそれに合わせる
+  - maximumやupperあたりを、Mathlib.Order.UpperLower.Closureとかを使う形に書き直す
+-/
