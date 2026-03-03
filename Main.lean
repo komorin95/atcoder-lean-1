@@ -133,15 +133,7 @@ theorem betterScoreAchievingExampleValid (a0 : Nat) (a : List Nat) (l len score 
     ∧ (betterScoreAchievingExample a0 a l len score).length = len
     ∧ scoreRec a0 (betterScoreAchievingExample a0 a l len score) l >= score :=
 by
-  fun_induction betterScoreAchievableRec
-  case case1 =>
-    unfold betterScoreAchievingExample
-    grind [betterScoreAchievingExample]
-  case case2 => grind
-  case case3 =>
-    grind [betterScoreAchievingExample]
-  case case4 =>
-    grind [betterScoreAchievingExample]
+  fun_induction betterScoreAchievableRec with (unfold betterScoreAchievingExample; grind)
 
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
@@ -191,8 +183,6 @@ by
       unfold betterScoreAchievableRec
       simp [h_if]
       apply ih
-      unfold scoreRec at h_scoreRec
-      obtain h_scoreRec_2 := ((Iff.mp Nat.le_min) (le_of_ge h_scoreRec)).right
       simp
       have a1b1 : a1 <= b1 := by
         cases h_sublist
@@ -284,8 +274,6 @@ def main : IO Unit := do
     intokens[i.val + 3]!.trim.toNat!
   -- TODO: この仮定は人工的に与えなくてすむはず
   if cond_an : a.length != n then unreachable! else
-  -- if cond_a : ¬ List.Chain (α := Nat) (· < ·) 0 a then unreachable! else
-  -- if cond_l : a.getLast (by grind) >= l then unreachable! else
   if cond_al : ¬ List.Chain (α := Nat) (· < ·) 0 (a ++ [l]) then unreachable! else
   let input : ProblemInput := {
     n := n
