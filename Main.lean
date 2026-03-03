@@ -12,9 +12,9 @@ import Mathlib.Data.List.Chain
 /-
   入力と条件
 
-  多くの定理証明支援系では、「命題Pの証明h」は「型Pに属する項h」と同一視される。
+  多くの定理証明支援系では、「命題Pの証明h」は「型Pに属する項h」として扱われる。
   Leanではさらに、関数の定義内でも項として証明が必要になることがある
-  (典型的なのは配列などの添え字アクセス)。
+  (例えば、配列などの添え字アクセス)。
   そこで入力データとそれらが満たす条件はここでは一緒に扱うことにする。
 
   数列についての不等式条件を表すのに List.Chain (Mathlib.Data.List.Chain より)を用いた。
@@ -51,6 +51,7 @@ def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   スコアscoreが実現する」
 
   scoreRecに合わせて、一般化した形で定義しておく。
+  「aから選んだb」を表すのに List.Sublist を用いた。
 -/
 abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
   List.Sublist b a
@@ -156,7 +157,7 @@ def solve (input : ProblemInput) : Nat :=
   then節内では変数condには「その条件が成り立つことの証明」が束縛される
   (命題の証明とは型を持つ項であることを思い出してほしい)。
   今回はelse節側がメインで、条件が成り立たないことの証明が得られる。
-  Leanにおける項と証明の絡み合いの一つの形が見える。
+  これを ProblemInput の一部として solve に渡すことになる。
 -/
 def main : IO Unit := do
   let stdin ← IO.getStdin
@@ -236,6 +237,9 @@ by
 abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
   ∃ m, m >= n ∧ pred m
 
+/-
+  「(upper pred)が成り立つ最大値とpredが成り立つ最大値は等しい」の証明。
+-/
 theorem upperMaximumIsMaximum
   (n : Nat)
   (pred : Nat → Prop)
@@ -246,6 +250,17 @@ by
   have : ¬ m > n := by grind
   grind
 
+/-
+  (upper pred0)を計算する関数predについて二分探索を行えば、
+  pred0を満たす最大値を計算できる、ということの証明。
+
+  多くの定理証明支援系と同じく、Leanには命題の型Propとブール値の型Boolが別にある。
+  Nat → Bool 型の項は「関数」であるが、Nat → Prop 型の項は「条件」と思うとよい。
+  後者については、成り立つことの証明を与えることなどはできる一方、
+  成り立っているかどうかを計算で判定することは通常できない。
+
+  証明は短く済む。grindタクティクには引数として追加で使う定理を与えることができる。
+-/
 theorem binarySearchForNonmonotone
   (pred0 : Nat → Prop)
   (pred : Nat → Bool)
@@ -258,6 +273,9 @@ by
   apply upperMaximumIsMaximum
   grind [binarySearchIsValid]
 
+/-
+
+-/
 theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
   : List.Chain (α := Nat) (· < ·) a0 (a ++ [l])
   → scoreRec a0 a l <= l - a0 :=
