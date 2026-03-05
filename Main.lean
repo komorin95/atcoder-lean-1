@@ -9,15 +9,8 @@ import Mathlib.Data.List.Chain
   ==================問題設定==================
 -/
 
-/-
-  入力と条件
-
-  多くの定理証明支援系では、「命題Pの証明h」は「型Pに属する項h」として扱われる。
-  Leanではさらに、関数の定義内でも項として証明が必要になることがある
-  (例えば、配列などの添え字アクセス)。
-  そこで入力データとそれらが満たす条件はここでは一緒に扱うことにする。
-
-  数列についての不等式条件を表すのに List.Chain (Mathlib.Data.List.Chain より)を用いた。
+/--
+  問題の入力と、それらについての条件。
 -/
 structure ProblemInput where
   n : Nat
@@ -30,15 +23,10 @@ structure ProblemInput where
   l : Nat
   cond_al : List.Chain (α := Nat) (· < ·) 0 (a ++ [l])
 
-/-
-  a0からlの座標を占めるようかんの切れ端を、aの各座標で切ったときの、ようかんの最小サイズ。
+/--
+  a0からlの座標を占めるようかんの切れ端を、aの各座標で切ったときの、ようかんの最小サイズを計算する関数。
 
-  後に備えて、再帰的に定義しておく。
-  なお、Leanで再帰関数を定義すると、自動的に「必ず有限の回数で停止する」ことを示そうとする。
-  明示的にその根拠を与えることもできる。
-  根拠を明示せず、自動証明もできない場合、エラーとなって定義はできない。
-  partialキーワードでこれを回避することもできるが、
-  その場合はその関数についての性質の証明はほぼ不可能になる。
+  実行時には呼び出されないが、条件の定義に必要。
 -/
 @[grind]
 def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
@@ -46,59 +34,47 @@ def scoreRec (a0 : Nat) (a : List Nat) (l : Nat) :=
   | [] => l - a0
   | a1 :: as => min (a1 - a0) (scoreRec a1 as l)
 
-/-
+/--
   「a0からlの座標を占めるようかんを、aから選んだlen箇所の位置bで切ることで、
-  スコアscoreが実現する」
-
-  scoreRecに合わせて、一般化した形で定義しておく。
-  「aから選んだb」を表すのに List.Sublist を用いた。
+  スコアscoreが実現する」という条件。
 -/
 abbrev scoreAchievablePartialBy (a0 : Nat) (a : List Nat) (l len score : Nat) (b : List Nat) : Prop :=
   List.Sublist b a
   ∧ b.length = len
   ∧ scoreRec a0 b l = score
 
-/-
-  「inputのもとで、bの各座標で切ればスコアsが実現する」
+/--
+  「inputのもとで、bの各座標で切ればスコアsが実現する」という条件。
 -/
 abbrev scoreAchievableBy (input : ProblemInput) (b : List Nat) (s : Nat) : Prop :=
   scoreAchievablePartialBy 0 input.a input.l input.k s b
 
-/-
-  「inputのもとでスコアsが実現可能である」
+/--
+  「inputのもとでスコアsが実現可能である」という条件。
 -/
 abbrev scoreAchievable (input : ProblemInput) (s : Nat) : Prop :=
   ∃ b, scoreAchievableBy input b s
 
-/-
-  「nはpredを満たす最大の自然数である」
+/--
+  「nはpredを満たす最大の自然数である」という条件。
 -/
 abbrev maximum (n : Nat) (pred : Nat → Prop) : Prop :=
   pred n ∧ ∀ m, (m > n) → ¬ pred m
 
-/-
-  「解答が正当である」
+/--
+  「全ての入力に対して、solutionが返す解答は正当である」という条件。
 
-  すなわち、solutionにinputを与えて計算させたスコアsが、
-  「inputのもとでスコアsが実現可能である」を満たす最大のsである。
-
-  以下ではこのsolutionに入れるべきsolve関数を与え、
-  thmSolutionIsValidでこれを証明する。
+  これを満たす関数を作り、証明を与えることが目標。
 -/
-abbrev abbrevSolutionIsValid (input : ProblemInput) (solution : ProblemInput → Nat) :=
-  maximum (solution input) (scoreAchievable input)
+abbrev abbrevSolutionIsValid (solution : ProblemInput → Nat) :=
+  ∀ input : ProblemInput, maximum (solution input) (scoreAchievable input)
 
 /-
   ==================解答プログラム==================
 -/
 
-/-
-  二分探索を行い、predがtrueからfalseに変わる点をleftとrightの間で探す。
-
-  再帰の形になっているが、「末尾再帰最適化」(tail-call optimization)
-  と呼ばれる機構によりループにコンパイルされるので、
-  コールスタックを大きく消費する心配はない。
-  一方で、定義が再帰の形になっていることで、性質の証明は行いやすくなる。
+/--
+  二分探索を行い、predがtrueからfalseに変わる点をleftとrightの間で探す関数。
 -/
 def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
@@ -110,11 +86,9 @@ def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
     else
       binarySearch pred left mid
 
-/-
+/--
   「a0からlの座標を占めるようかんを、aから選んだlen箇所で切ることで、
-  score以上のスコアが実現できるか」を貪欲法で判定する。
-
-  こちらも末尾再帰になっている。
+  score以上のスコアが実現できるか」を貪欲法で判定する関数。
 -/
 def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Bool :=
   if len == 0 then
@@ -128,36 +102,25 @@ def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Boo
       else
         betterScoreAchievableRec a0 as l len score
 
-/-
-  「inputのもとで、score以上のスコアが実現できるか？」を貪欲法で判定する。
+/--
+  「inputのもとで、score以上のスコアが実現できるか？」を貪欲法で判定する関数。
 -/
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
 
-/-
-  貪欲法によるスコア上界の判定と二分探索を組み合わせ、最大スコアを求める。
+/--
+  貪欲法によるスコア閾値達成可能性の判定と二分探索を組み合わせ、最大スコアを求める関数。
 
   この関数の正当性が今回の目標になる。
 -/
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 0 (input.l + 1)
 
-/-
+/--
   エントリーポイント。
-
-  IOというのはHaskellなどにも登場する「IOモナド」で、
-  この関数がデータの計算以外に入出力という副作用を持つことを示す。
-  doという表記の役割もHaskellのものと同様。
 
   標準入力をパースしてsolveに与え、出力をprintするのに加え、
   問題の条件に入力が合っているかも判定している。
-  ここで使われている
-    if cond : x > y then ...
-  という表記は dependent if-then-else と呼ばれ、
-  then節内では変数condには「その条件が成り立つことの証明」が束縛される
-  (命題の証明とは型を持つ項であることを思い出してほしい)。
-  今回はelse節側がメインで、条件が成り立たないことの証明が得られる。
-  これを ProblemInput の一部として solve に渡すことになる。
 -/
 def main : IO Unit := do
   let stdin ← IO.getStdin
@@ -192,35 +155,14 @@ def main : IO Unit := do
   ==================正当性証明==================
 -/
 
-/-
-  「predは"単調減少"である」
-
-  すなわち、trueであるような自然数の集合は下に閉じている。
-  標準ライブラリにあるので移行したい。
+/--
+  「predは"単調減少"である」という条件。
 -/
 abbrev monotone (pred : Nat → Prop) : Prop :=
   ∀ m n, (m <= n) → pred n → pred m
 
-/-
-  二分探索が正当であることの証明。
-
-  多くの定理証明支援系では、タクティクと呼ばれるコマンドを繰り返して証明を行う。
-  Leanではbyキーワードによりタクティクの列が開始される。
-
-  ここではまず fun_induction タクティクを用いて、
-  関数の再帰呼び出しの流れに沿った帰納法で証明を行う。
-  関数の再帰は必ずいつか止まることが内部的に自動で示されているので、
-  このタクティクでは内部的にそれを利用することになる。
-
-  本来は各ベースケース・再帰呼び出しケースで証明を進める必要があるが、
-  今回は with grind とし、「各ケースでgrindを使え」と指示した。
-  grind タクティクはSMTソルバーの技法にヒントを得て作られた自動証明タクティクである。
-  Leanプロジェクトを立ち上げたのがSMTソルバー「Z3」の開発者であったことも考えると、
-  grindはある意味Leanの看板タクティクかもしれない。
-  実際、今回の証明くらいならすぐに終わらせられるくらいには強力。
-
-  二分探索を成り立たせるための仮定はここで前提条件として置いたが、
-  プログラム側の引数にすることもできるだろう。
+/--
+  二分探索が正当である、という定理。
 -/
 theorem binarySearchIsValid
   (pred : Nat → Bool) (left : Nat) (right : Nat)
@@ -231,14 +173,14 @@ theorem binarySearchIsValid
 by
   fun_induction binarySearch with grind
 
-/-
-  「n以上の数でpredが成り立つようなものが存在する」
+/--
+  「n以上の数でpredが成り立つようなものが存在する」という条件。
 -/
 abbrev upper (pred : Nat → Prop) (n : Nat) : Prop :=
   ∃ m, m >= n ∧ pred m
 
-/-
-  「(upper pred)が成り立つ最大値とpredが成り立つ最大値は等しい」の証明。
+/--
+  「(upper pred)が成り立つ最大値とpredが成り立つ最大値は等しい」という定理。
 -/
 theorem upperMaximumIsMaximum
   (n : Nat)
@@ -250,16 +192,9 @@ by
   have : ¬ m > n := by grind
   grind
 
-/-
+/--
   (upper pred0)を計算する関数predについて二分探索を行えば、
-  pred0を満たす最大値を計算できる、ということの証明。
-
-  多くの定理証明支援系と同じく、Leanには命題の型Propとブール値の型Boolが別にある。
-  Nat → Bool 型の項は「関数」であるが、Nat → Prop 型の項は「条件」と思うとよい。
-  後者については、成り立つことの証明を与えることなどはできる一方、
-  成り立っているかどうかを計算で判定することは通常できない。
-
-  証明は短く済む。grindタクティクには引数として追加で使う定理を与えることができる。
+  pred0を満たす最大値を計算できる、という定理。
 -/
 theorem binarySearchForNonmonotone
   (pred0 : Nat → Prop)
@@ -273,8 +208,8 @@ by
   apply upperMaximumIsMaximum
   grind [binarySearchIsValid]
 
-/-
-
+/--
+  スコアは元のようかんの長さで上から押さえられるという定理。
 -/
 theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
   : List.Chain (α := Nat) (· < ·) a0 (a ++ [l])
@@ -282,21 +217,36 @@ theorem scoreRecUpperBound (a0 : Nat) (a : List Nat) (l : Nat)
 by
   fun_induction scoreRec with (simp <;> try grind)
 
+/--
+  ようかんを左に延ばしても、切れ目と右端が同じならスコアは減らないという定理。
+-/
 theorem scoreRecAntiMonotone (a00 : Nat) (a0 : Nat) (a : List Nat) (l : Nat)
   : a00 <= a0 → scoreRec a00 a l >= scoreRec a0 a l :=
 by
   fun_induction scoreRec a00 a l with grind [scoreRec]
 
+/--
+  貪欲スコア判定関数は、0を与えればtrueを返すという定理。
+-/
 theorem betterScoreAchievableRecZeroCase (a0 : Nat) (a : List Nat) (l len : Nat)
   : len <= a.length → betterScoreAchievableRec a0 a l len 0 = true :=
 by
   fun_induction betterScoreAchievableRec with grind
 
+/--
+  貪欲スコア判定関数は、lより大きい数を与えればfalseを返すという定理。
+-/
 theorem betterScoreAchievableRecMaxCase (a0 : Nat) (a : List Nat) (l len score : Nat)
   : score > l → betterScoreAchievableRec a0 a l len score = false :=
 by
   fun_induction betterScoreAchievableRec with grind
 
+/--
+  貪欲法で、実際に切る場所のリストを計算する関数。
+
+  実行時には呼び出されないが、「貪欲法で達成可能とされたスコア閾値は実際に達成できる」ということの、
+  定式化や証明に必要になる。
+-/
 def betterScoreAchievingExample (a0 : Nat) (a : List Nat) (l len score : Nat) : List Nat :=
   if len == 0 then
     []
@@ -309,6 +259,9 @@ def betterScoreAchievingExample (a0 : Nat) (a : List Nat) (l len score : Nat) : 
       else
         betterScoreAchievingExample a0 as l len score
 
+/--
+  上の関数が、実際に与えられた以上のスコアを出すという定理。
+-/
 theorem betterScoreAchievingExampleValid (a0 : Nat) (a : List Nat) (l len score : Nat)
   : betterScoreAchievableRec a0 a l len score = true
     → List.Sublist (betterScoreAchievingExample a0 a l len score) a
@@ -317,6 +270,11 @@ theorem betterScoreAchievingExampleValid (a0 : Nat) (a : List Nat) (l len score 
 by
   fun_induction betterScoreAchievableRec with (unfold betterScoreAchievingExample; grind)
 
+/--
+  貪欲法による判定は「健全」であるという定理。
+
+  すなわち、貪欲法で達成可能とされたスコア閾値は実際に達成可能になるということ。
+-/
 theorem betterScoreAchievableSound (input : ProblemInput) (score : Nat)
   : betterScoreAchievable input score = true → upper (scoreAchievable input) score :=
 by
@@ -325,6 +283,12 @@ by
   have h := betterScoreAchievingExampleValid 0 input.a input.l input.k score a
   grind
 
+/--
+  任意の切り方を与えられた際、それを貪欲法による結果に作り替える関数。
+
+  実行時には呼び出されないが、「達成できるスコア閾値は貪欲法で達成可能と判定される」ということを
+  証明する際、数学的帰納法での帰着先を示すガイドになる。
+-/
 def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat) : List Nat :=
   match b with
   | [] => []
@@ -337,6 +301,11 @@ def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List N
       else
         modifyToGreedySolution a0 as l score b
 
+/--
+  貪欲法による判定は「完全」であるという定理。
+
+  すなわち、実際に達成可能なスコア閾値は貪欲法でも達成可能と判定されるということ。
+-/
 theorem betterScoreAchievableRecCompleteWithGuide (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
   : scoreAchievablePartialBy a0 a l b.length (scoreRec a0 b l) b
   ∧ scoreRec a0 b l >= score
@@ -378,6 +347,11 @@ by
     have := List.Chain.sublist h_chain h_sublist_2
     grind [Nat.le_min, betterScoreAchievableRec]
 
+/--
+  貪欲法による判定は「完全」であるという定理。
+
+  すなわち、実際に達成可能なスコア閾値は貪欲法でも達成可能と判定されるということ。
+-/
 theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
   (b : List Nat)
   : scoreAchievablePartialBy a0 a l len s b
@@ -391,6 +365,11 @@ by
   apply betterScoreAchievableRecCompleteWithGuide a0 a l score b
   grind
 
+/--
+  貪欲法による判定は「完全」であるという定理。
+
+  すなわち、実際に達成可能なスコア閾値は貪欲法でも達成可能と判定されるということ。
+-/
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score → betterScoreAchievable input score = true :=
 by
@@ -402,6 +381,9 @@ by
   apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b
   grind
 
+/--
+  貪欲法による判定は正当であるという定理。
+-/
 theorem betterScoreAchievableIsValid (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score ↔ betterScoreAchievable input score = true :=
 by
@@ -409,9 +391,13 @@ by
   apply betterScoreAchievableComplete
   apply betterScoreAchievableSound
 
-theorem thmSolutionIsValid (input : ProblemInput)
-  : abbrevSolutionIsValid input solve :=
+/--
+  解法は正当であるという定理。
+-/
+theorem thmSolutionIsValid
+  : abbrevSolutionIsValid solve :=
 by
+  intro input
   apply binarySearchForNonmonotone
   case h_pred =>
     intro
