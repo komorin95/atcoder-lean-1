@@ -302,11 +302,10 @@ def modifyToGreedySolution (a0 : Nat) (a : List Nat) (l score : Nat) (b : List N
         modifyToGreedySolution a0 as l score b
 
 /--
-  貪欲法による判定は「完全」であるという定理。
-
-  すなわち、実際に達成可能なスコア閾値は貪欲法でも達成可能と判定されるということ。
+  「達成できるスコア閾値は貪欲法で達成可能と判定される」という定理を、
+  帰納法で示すために一般化された形。
 -/
-theorem betterScoreAchievableRecCompleteWithGuide (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
+theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l score : Nat) (b : List Nat)
   : scoreAchievablePartialBy a0 a l b.length (scoreRec a0 b l) b
   ∧ scoreRec a0 b l >= score
   ∧ List.Chain (· < ·) a0 (a ++ [l])
@@ -352,24 +351,6 @@ by
 
   すなわち、実際に達成可能なスコア閾値は貪欲法でも達成可能と判定されるということ。
 -/
-theorem betterScoreAchievableRecComplete (a0 : Nat) (a : List Nat) (l len score s : Nat)
-  (b : List Nat)
-  : scoreAchievablePartialBy a0 a l len s b
-  ∧ s >= score
-  ∧ List.Chain (· < ·) a0 (a ++ [l])
-  → betterScoreAchievableRec a0 a l len score = true :=
-by
-  intro h_pre
-  obtain h_eq_len := h_pre.left.right.left
-  rw [← h_eq_len]
-  apply betterScoreAchievableRecCompleteWithGuide a0 a l score b
-  grind
-
-/--
-  貪欲法による判定は「完全」であるという定理。
-
-  すなわち、実際に達成可能なスコア閾値は貪欲法でも達成可能と判定されるということ。
--/
 theorem betterScoreAchievableComplete (input : ProblemInput) (score : Nat)
   : upper (scoreAchievable input) score → betterScoreAchievable input score = true :=
 by
@@ -378,7 +359,9 @@ by
   have : List.Chain (· < ·) 0 (input.a ++ [input.l]) := input.cond_al
   unfold scoreAchievableBy at h3
   unfold betterScoreAchievable
-  apply betterScoreAchievableRecComplete 0 input.a input.l input.k score s b
+  obtain h_eq_len := h3.right.left
+  rw [← h_eq_len]
+  apply betterScoreAchievableRecComplete 0 input.a input.l score b
   grind
 
 /--
@@ -393,6 +376,8 @@ by
 
 /--
   解法は正当であるという定理。
+
+  これが証明したいことであった。
 -/
 theorem thmSolutionIsValid
   : abbrevSolutionIsValid solve :=
@@ -419,6 +404,5 @@ by
 /-
   TODO
 
-  - Leanのdoc commentの書き方をちゃんと調べてそれに合わせる
   - maximumやupperあたりを、Mathlib.Order.UpperLower.Closureとかを使う形に書き直す
 -/
