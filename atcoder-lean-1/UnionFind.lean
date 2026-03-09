@@ -20,10 +20,7 @@ def UnionFindVector.make (n : Nat) : UnionFindVector n :=
 /--
   iの同値類を表す数を得る関数。
 
-  TODO: 不変条件を適切に設定して、この関数の停止性を示す。
-  おそらく (n+1-rank) あたりが再帰で減少すると示しやすいのではなかろうか。
-  後のために、「返ってきたものは代表元だ」という証明も一緒に返さないとダメかもしれない。
-  いや、普通に定義を使ってtheoremを作ればいいだけか。
+  TODO: Vector向けのshimをいくつか作って、それをベースにしてinv_max_sizeを排除する
 -/
 def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
   let pi := uf.parent[i]
@@ -41,9 +38,16 @@ decreasing_by
     have h_inv_max_size_pi := uf.inv_max_size pi
     grind
 
-structure UnionFindVectorRepresentative (n : Nat) (uf : UnionFindVector n) where
-  i : Fin n
-  i_is_representative : uf.parent[i] = i
+theorem parent_find_eq_find (uf : UnionFindVector n) (i : Fin n)
+  : uf.parent[uf.find i] = uf.find i :=
+by
+   fun_induction UnionFindVector.find with grind only
+
+theorem Vector.getElem_set_ne_fin {i j : Fin n} {xs : Vector α n} {x : α}
+  (h : i ≠ j) : (xs.set ↑i x)[j] = xs[j] :=
+by
+  apply Vector.getElem_set_ne
+  grind only [Fin.eq_of_val_eq]
 
 def UnionFindVector.internal_naive_union
   (uf : UnionFindVector n) (i_parent i_child : Fin n)
@@ -59,11 +63,11 @@ def UnionFindVector.internal_naive_union
       case pos =>
         sorry
       case neg =>
-        have h : (uf.parent.set (↑i_child) i_parent)[(↑i : Nat)] = uf.parent[↑i] := by
-          apply Vector.getElem_set_ne
-          case h => grind only [Fin.eq_of_val_eq]
-        simp [h]
+        -- simpだとダメ
+        -- Vector.getElem_set_neだとダメ
+        rw [Vector.getElem_set_ne_fin]
         sorry
+        grind only
     max_size := uf.max_size.max (sp + sc)
     inv_max_size := sorry
   }
@@ -84,8 +88,6 @@ def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVect
 /-
   TODO:
   - EqvGenを使ってUnionFindの「意味」を定式化
-  - sizeを追加してunion-by-sizeを実装
-  - 「グループリーダーにわたるsizeの総和がn」を示し、そこからfindの停止性を示す
   - (後で。優先度低)sizeがちゃんとサイズになっていることを示す。
     - 集合のサイズの定義自体、何を使えばいいか……という感じなので、後回しが良さそう
 -/
