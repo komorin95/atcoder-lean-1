@@ -21,12 +21,14 @@ structure UnionFindVector (n : Nat) where
   internal_mk ::
   parent : Vector (Fin n) n
   size : Vector Nat n
+  inv_size : ∀ i : Fin n, 1 <= size[i]
   inv_parent_size : ∀ i : Fin n, i = parent[i] ∨ size[i] < size[parent[i]]
 
 def UnionFindVector.make (n : Nat) : UnionFindVector n :=
   {
     parent := Vector.ofFn (fun i => i)
     size := Vector.ofFn (fun _ => 1)
+    inv_size := by simp
     inv_parent_size := by simp
   }
 
@@ -69,22 +71,65 @@ by
 
 def UnionFindVector.internal_naive_union
   (uf : UnionFindVector n) (i_parent i_child : Fin n)
-  (cond_i : ¬ i_parent = i_child) : UnionFindVector n :=
+  (cond_ip : uf.parent[i_parent] = i_parent)
+  (cond_ip_ic : ¬ i_parent = i_child) : UnionFindVector n :=
   let sp := uf.size[i_parent]
   let sc := uf.size[i_child]
   {
     parent := uf.parent.set i_child i_parent
     size := uf.size.set i_parent (sp + sc)
+    inv_size := by
+      intro i
+      by_cases h_ip_i : i_parent = i
+      case pos =>
+        have h_sp := uf.inv_size i_parent
+        simp [*]
+        grind only
+      case neg =>
+        have : (↑i_parent : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
+        have h_i := uf.inv_size i
+        simp_all
     inv_parent_size := by
       intro i
-      by_cases h_i : i = i_child
+      by_cases h_i_ic : i_child = i
       case pos =>
-        sorry
+        simp [*]
+        right
+        have : (↑i_parent : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
+        simp [*]
+        have h_sp := uf.inv_size i_parent
+        have h_sc : uf.size[(↑i : Nat)] = sc := by
+          unfold sc
+          simp
+          grind only
+        grind only
       case neg =>
-        have h : i_child ≠ i := by grind only
-        -- hを入れないとsimpできない。なんでだ
-        simp [Vector.getElem_set_ne_fin h]
-        sorry
+        have h_i_ic : (↑i_child : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
+        simp [*]
+        by_cases h_ip_i : i_parent = i
+        case pos =>
+          left
+          simp_all
+        case neg =>
+          have h_ip_i : (↑i_parent : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
+          simp [*]
+          by_cases h_ip_pari : i_parent = uf.parent[i]
+          case pos =>
+            simp [*]
+            cases uf.inv_parent_size i
+            case inl => grind only
+            case inr =>
+              right
+              unfold sp
+              simp_all
+              grind only
+          case neg =>
+            rw [Vector.getElem_set_ne]
+            have h_inv_i := uf.inv_parent_size i
+            simp at *
+            grind only
+            simp at *
+            grind only [Fin.eq_of_val_eq]
   }
 
 def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVector n :=
@@ -96,9 +141,9 @@ def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVect
     let si := uf.size[ci]
     let sj := uf.size[cj]
     if si > sj then
-      uf.internal_naive_union ci cj (by grind only)
+      uf.internal_naive_union ci cj (by grind [parent_find_eq_find]) (by grind only)
     else
-      uf.internal_naive_union cj ci (by grind only)
+      uf.internal_naive_union cj ci (by grind [parent_find_eq_find]) (by grind only)
 
 /-
   TODO:
