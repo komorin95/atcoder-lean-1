@@ -1,22 +1,5 @@
 -- import Mathlib.Logic.Relation
 
-structure UnionFindVector (n : Nat) where
-  internal_mk ::
-  parent : Vector (Fin n) n
-  size : Vector Nat n
-  inv_parent_size : ∀ i : Fin n, i = parent[i] ∨ size[i] < size[parent[i]]
-  max_size : Nat
-  inv_max_size : ∀ i : Fin n, size[i] <= max_size
-
-def UnionFindVector.make (n : Nat) : UnionFindVector n :=
-  {
-    parent := Vector.ofFn (fun i => i)
-    size := Vector.ofFn (fun _ => 1)
-    inv_parent_size := by simp
-    max_size := 1
-    inv_max_size := by simp
-  }
-
 def Vector.max [Max α] (xs : Vector α n) (h : n > 0 := by simp_all) : α :=
   let max_o := xs.toList.max?
   have h_is_some : max_o.isSome := by
@@ -26,10 +9,29 @@ def Vector.max [Max α] (xs : Vector α n) (h : n > 0 := by simp_all) : α :=
     grind [List.isSome_max?_of_mem]
   max_o.get h_is_some
 
+theorem Vector.le_max_of_getElem_fin {xs : Vector Nat n} {i : Fin n} (hn : n > 0)
+  : xs[i] <= xs.max :=
+by
+  unfold Vector.max
+  simp
+  apply List.le_max?_get_of_mem
+  simp
+
+structure UnionFindVector (n : Nat) where
+  internal_mk ::
+  parent : Vector (Fin n) n
+  size : Vector Nat n
+  inv_parent_size : ∀ i : Fin n, i = parent[i] ∨ size[i] < size[parent[i]]
+
+def UnionFindVector.make (n : Nat) : UnionFindVector n :=
+  {
+    parent := Vector.ofFn (fun i => i)
+    size := Vector.ofFn (fun _ => 1)
+    inv_parent_size := by simp
+  }
+
 /--
   iの同値類を表す数を得る関数。
-
-  TODO: Vector向けのshimをいくつか作って、それをベースにしてinv_max_sizeを排除する
 -/
 def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
   let pi := uf.parent[i]
@@ -37,14 +39,22 @@ def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
     i
   else
     uf.find pi
-termination_by uf.max_size - uf.size[i]
+termination_by (if h : n = 0 then 0 else uf.size.max (by grind only)) - uf.size[i]
 decreasing_by
+  have hn_nonzero : n ≠ 0 := by
+    have hi := i.isLt
+    grind only
+  have hn_gtzero : n > 0 := by grind only
+  have h_pi : uf.parent[i] = pi := by grind only
+  simp [*]
   have h_inv_parent_size := uf.inv_parent_size i
   cases h_inv_parent_size
   case inl => grind
   case inr =>
-    have h_inv_max_size_i := uf.inv_max_size i
-    have h_inv_max_size_pi := uf.inv_max_size pi
+    have : uf.size[i] <= uf.size.max := by grind only [Vector.le_max_of_getElem_fin]
+    have : uf.size[pi] <= uf.size.max := by grind only [Vector.le_max_of_getElem_fin]
+    -- have h_inv_max_size_pi := uf.inv_max_size pi
+    simp_all
     grind
 
 theorem parent_find_eq_find (uf : UnionFindVector n) (i : Fin n)
@@ -76,8 +86,6 @@ def UnionFindVector.internal_naive_union
         -- hを入れないとsimpできない。なんでだ
         simp [Vector.getElem_set_ne_fin h]
         sorry
-    max_size := uf.max_size.max (sp + sc)
-    inv_max_size := sorry
   }
 
 def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVector n :=
