@@ -17,6 +17,15 @@ def UnionFindVector.make (n : Nat) : UnionFindVector n :=
     inv_max_size := by simp
   }
 
+def Vector.max [Max α] (xs : Vector α n) (h : n > 0 := by simp_all) : α :=
+  let max_o := xs.toList.max?
+  have h_is_some : max_o.isSome := by
+    have : ∃ a : α, a ∈ xs.toList := by
+      apply List.length_pos_iff_exists_mem.mp
+      simp_all
+    grind [List.isSome_max?_of_mem]
+  max_o.get h_is_some
+
 /--
   iの同値類を表す数を得る関数。
 
@@ -63,11 +72,10 @@ def UnionFindVector.internal_naive_union
       case pos =>
         sorry
       case neg =>
-        -- simpだとダメ
-        -- Vector.getElem_set_neだとダメ
-        rw [Vector.getElem_set_ne_fin]
+        have h : i_child ≠ i := by grind only
+        -- hを入れないとsimpできない。なんでだ
+        simp [Vector.getElem_set_ne_fin h]
         sorry
-        grind only
     max_size := uf.max_size.max (sp + sc)
     inv_max_size := sorry
   }
