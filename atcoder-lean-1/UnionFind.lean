@@ -27,10 +27,8 @@ def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
 termination_by uf.size.toList.max?.getD 0 - uf.size[i]
 decreasing_by
   have h_inv_parent_size := uf.inv_parent_size i
-  have : uf.size[i] <= uf.size.toList.max?.getD 0 := by
-    apply List.le_max?_getD_of_mem
-    simp
-  have : uf.size[pi] <= uf.size.toList.max?.getD 0:= by
+  have h_max : ∀ ii : Fin n, uf.size[ii] <= uf.size.toList.max?.getD 0 := by
+    intro
     apply List.le_max?_getD_of_mem
     simp
   grind
@@ -48,12 +46,6 @@ by
   simp at this
   assumption
 
-theorem Vector.getElem_set_ne_fin {i j : Fin n} {xs : Vector α n} {x : α}
-  (h : i ≠ j) : (xs.set ↑i x)[j] = xs[j] :=
-by
-  apply Vector.getElem_set_ne
-  grind only [Fin.eq_of_val_eq]
-
 def UnionFindVector.internal_naive_union
   (uf : UnionFindVector n) (i_parent i_child : Fin n)
   (cond_ip : uf.parent[i_parent] = i_parent)
@@ -64,16 +56,9 @@ def UnionFindVector.internal_naive_union
     parent := uf.parent.set i_child i_parent
     size := uf.size.set i_parent (sp + sc)
     inv_size := by
-      intro i
-      by_cases h_ip_i : i_parent = i
-      case pos =>
-        have h_sp := uf.inv_size i_parent
-        simp [*]
-        grind only
-      case neg =>
-        have : (↑i_parent : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
-        have h_i := uf.inv_size i
-        simp_all
+      have := uf.inv_size
+      simp_all (config := {zetaDelta := true}) [Vector.getElem_set]
+      grind only [Fin.eq_of_val_eq]
     inv_parent_size := by
       intro i
       by_cases h_i_ic : i_child = i
@@ -84,8 +69,7 @@ def UnionFindVector.internal_naive_union
         simp [*]
         have h_sp := uf.inv_size i_parent
         have h_sc : uf.size[(↑i : Nat)] = sc := by
-          unfold sc
-          simp
+          simp (config := {zetaDelta := true})
           grind only
         grind only
       case neg =>
