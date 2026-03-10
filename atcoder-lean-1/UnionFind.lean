@@ -26,7 +26,7 @@ def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
     uf.find pi
 termination_by uf.size.toList.max?.getD 0 - uf.size[i]
 decreasing_by
-  have h_inv_parent_size := uf.inv_parent_size i
+  have := uf.inv_parent_size
   have h_max : ∀ ii : Fin n, uf.size[ii] <= uf.size.toList.max?.getD 0 := by
     intro
     apply List.le_max?_getD_of_mem
@@ -46,6 +46,18 @@ by
   simp at this
   assumption
 
+/--
+  simpで上手に添え字を扱うための補題。
+  複雑になる方向に見えるが、後の簡約を考えるとこの向きが正解な気がする。
+-/
+@[simp]
+theorem Fin.eq_iff_eq_of_val {i j : Fin n}
+  : i = j ↔ i.val = j.val :=
+by
+  constructor
+  apply Fin.val_eq_of_eq
+  apply Fin.eq_of_val_eq
+
 def UnionFindVector.internal_naive_union
   (uf : UnionFindVector n) (i_parent i_child : Fin n)
   (cond_ip : uf.parent[i_parent] = i_parent)
@@ -58,37 +70,12 @@ def UnionFindVector.internal_naive_union
     inv_size := by
       have := uf.inv_size
       simp_all (config := {zetaDelta := true}) [Vector.getElem_set]
-      grind only [Fin.eq_of_val_eq]
+      grind only
     inv_parent_size := by
       have := uf.inv_size
       have := uf.inv_parent_size
-      intro i
-      by_cases h_i_ic : i_child = i
-      case pos =>
-        simp [*, sc, Vector.getElem_set]
-        grind only [Fin.eq_of_val_eq]
-      case neg =>
-        have h_i_ic : (↑i_child : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
-        simp [*]
-        by_cases h_ip_i : i_parent = i
-        case pos =>
-          left
-          simp_all
-        case neg =>
-          have h_ip_i : (↑i_parent : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
-          simp [*]
-          by_cases h_ip_pari : i_parent = uf.parent[i]
-          case pos =>
-            unfold sp
-            simp_all
-            cases uf.inv_parent_size i
-            case inl => grind only
-            case inr =>
-              simp_all
-              grind only
-          case neg =>
-            simp_all [Vector.getElem_set]
-            grind only [Fin.eq_of_val_eq]
+      simp_all (config := {zetaDelta := true}) [Vector.getElem_set]
+      grind only [cases Or]
   }
 
 def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVector n :=
