@@ -115,20 +115,16 @@ def UnionFindVector.internal_naive_union
           simp [*]
           by_cases h_ip_pari : i_parent = uf.parent[i]
           case pos =>
-            simp [*]
+            unfold sp
+            simp_all
             cases uf.inv_parent_size i
             case inl => grind only
             case inr =>
-              right
-              unfold sp
               simp_all
               grind only
           case neg =>
-            rw [Vector.getElem_set_ne]
             have h_inv_i := uf.inv_parent_size i
-            simp at *
-            grind only
-            simp at *
+            simp_all [Vector.getElem_set]
             grind only [Fin.eq_of_val_eq]
   }
 
