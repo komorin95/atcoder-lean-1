@@ -1,22 +1,5 @@
 -- import Mathlib.Logic.Relation
 
-def Vector.max [Max α] (xs : Vector α n) (h : n > 0 := by simp_all) : α :=
-  let max_o := xs.toList.max?
-  have h_is_some : max_o.isSome := by
-    have : ∃ a : α, a ∈ xs.toList := by
-      apply List.length_pos_iff_exists_mem.mp
-      simp_all
-    grind [List.isSome_max?_of_mem]
-  max_o.get h_is_some
-
-theorem Vector.le_max_of_getElem_fin {xs : Vector Nat n} {i : Fin n} (hn : n > 0)
-  : xs[i] <= xs.max :=
-by
-  unfold Vector.max
-  simp
-  apply List.le_max?_get_of_mem
-  simp
-
 structure UnionFindVector (n : Nat) where
   internal_mk ::
   parent : Vector (Fin n) n
@@ -41,27 +24,29 @@ def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
     i
   else
     uf.find pi
-termination_by (if h : n = 0 then 0 else uf.size.max (by grind only)) - uf.size[i]
+termination_by uf.size.toList.max?.getD 0 - uf.size[i]
 decreasing_by
-  have hn_nonzero : n ≠ 0 := by
-    have hi := i.isLt
-    grind only
-  have hn_gtzero : n > 0 := by grind only
-  have h_pi : uf.parent[i] = pi := by grind only
-  simp [*]
   have h_inv_parent_size := uf.inv_parent_size i
-  cases h_inv_parent_size
-  case inl => grind
-  case inr =>
-    have : uf.size[i] <= uf.size.max := by grind only [Vector.le_max_of_getElem_fin]
-    have : uf.size[pi] <= uf.size.max := by grind only [Vector.le_max_of_getElem_fin]
-    simp_all
-    grind
+  have : uf.size[i] <= uf.size.toList.max?.getD 0 := by
+    apply List.le_max?_getD_of_mem
+    simp
+  have : uf.size[pi] <= uf.size.toList.max?.getD 0:= by
+    apply List.le_max?_getD_of_mem
+    simp
+  grind
 
 theorem parent_find_eq_find (uf : UnionFindVector n) (i : Fin n)
   : uf.parent[uf.find i] = uf.find i :=
 by
    fun_induction UnionFindVector.find with grind only
+
+@[simp]
+theorem parent_find_eq_find_simpNF (uf : UnionFindVector n) (i : Fin n)
+  : uf.parent[(↑(uf.find i) : Nat)] = uf.find i :=
+by
+  have := parent_find_eq_find uf i
+  simp at this
+  assumption
 
 theorem Vector.getElem_set_ne_fin {i j : Fin n} {xs : Vector α n} {x : α}
   (h : i ≠ j) : (xs.set ↑i x)[j] = xs[j] :=
@@ -137,9 +122,9 @@ def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVect
     let si := uf.size[ci]
     let sj := uf.size[cj]
     if si > sj then
-      uf.internal_naive_union ci cj (by grind [parent_find_eq_find]) (by grind only)
+      uf.internal_naive_union ci cj (by simp (config := {zetaDelta := true})) (by grind only)
     else
-      uf.internal_naive_union cj ci (by grind [parent_find_eq_find]) (by grind only)
+      uf.internal_naive_union cj ci (by simp (config := {zetaDelta := true})) (by grind only)
 
 /-
   TODO:
