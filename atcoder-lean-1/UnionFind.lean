@@ -53,7 +53,6 @@ decreasing_by
   case inr =>
     have : uf.size[i] <= uf.size.max := by grind only [Vector.le_max_of_getElem_fin]
     have : uf.size[pi] <= uf.size.max := by grind only [Vector.le_max_of_getElem_fin]
-    -- have h_inv_max_size_pi := uf.inv_max_size pi
     simp_all
     grind
 
