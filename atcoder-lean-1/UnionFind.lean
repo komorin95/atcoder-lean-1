@@ -49,7 +49,7 @@ by
 def UnionFindVector.internal_naive_union
   (uf : UnionFindVector n) (i_parent i_child : Fin n)
   (cond_ip : uf.parent[i_parent] = i_parent)
-  (cond_ip_ic : ¬ i_parent = i_child) : UnionFindVector n :=
+  : UnionFindVector n :=
   let sp := uf.size[i_parent]
   let sc := uf.size[i_child]
   {
@@ -60,18 +60,13 @@ def UnionFindVector.internal_naive_union
       simp_all (config := {zetaDelta := true}) [Vector.getElem_set]
       grind only [Fin.eq_of_val_eq]
     inv_parent_size := by
+      have := uf.inv_size
+      have := uf.inv_parent_size
       intro i
       by_cases h_i_ic : i_child = i
       case pos =>
-        simp [*]
-        right
-        have : (↑i_parent : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
-        simp [*]
-        have h_sp := uf.inv_size i_parent
-        have h_sc : uf.size[(↑i : Nat)] = sc := by
-          simp (config := {zetaDelta := true})
-          grind only
-        grind only
+        simp [*, sc, Vector.getElem_set]
+        grind only [Fin.eq_of_val_eq]
       case neg =>
         have h_i_ic : (↑i_child : Nat) ≠ ↑i := by grind only [Fin.eq_of_val_eq]
         simp [*]
@@ -92,7 +87,6 @@ def UnionFindVector.internal_naive_union
               simp_all
               grind only
           case neg =>
-            have h_inv_i := uf.inv_parent_size i
             simp_all [Vector.getElem_set]
             grind only [Fin.eq_of_val_eq]
   }
@@ -106,9 +100,9 @@ def UnionFindVector.union (uf : UnionFindVector n) (i j : Fin n) : UnionFindVect
     let si := uf.size[ci]
     let sj := uf.size[cj]
     if si > sj then
-      uf.internal_naive_union ci cj (by simp (config := {zetaDelta := true})) (by grind only)
+      uf.internal_naive_union ci cj (by simp [ci])
     else
-      uf.internal_naive_union cj ci (by simp (config := {zetaDelta := true})) (by grind only)
+      uf.internal_naive_union cj ci (by simp [cj])
 
 /-
   TODO:
