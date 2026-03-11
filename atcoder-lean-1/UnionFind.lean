@@ -46,22 +46,24 @@ by
   simp at this
   assumption
 
-structure UnionFindPathCompData (n : Nat) (i : Fin n) where
+structure UnionFindPathCompData (n : Nat) (i : Fin n) (size : Vector Nat n) where
   uf : UnionFindVector n
   ri : Fin n
   h_pathcomp : uf.parent[i] = ri
+  h_size : uf.size = size
 
 def UnionFindVector.findHelper (uf : UnionFindVector n) (i : Fin n)
-  : UnionFindPathCompData n i :=
+  : UnionFindPathCompData n i uf.size :=
   let pi := uf.parent[i]
   if h_if : pi = i then
     {
       uf := uf
       ri := i
       h_pathcomp := by simp_all [pi]
+      h_size := by simp
     }
   else
-    let ⟨uf1, ri, h_pathcomp1⟩ := uf.findHelper pi
+    let ⟨uf1, ri, h_pathcomp1, h_size⟩ := uf.findHelper pi
     let uf_new := {
       parent := uf1.parent.set i ri
       size := uf1.size
@@ -72,15 +74,23 @@ def UnionFindVector.findHelper (uf : UnionFindVector n) (i : Fin n)
         have := h_pathcomp1
         have : uf1.size[pi] <= uf1.size[ri] := by grind
         have : uf1.size[i] < uf1.size[ri] := by
-          have := uf1.inv_parent_size i
-          sorry
+          have := uf.inv_parent_size i
+          cases this
+          case inl hh =>
+            simp [pi] at h_if
+            simp at hh
+            grind
+          case inr =>
+            unfold pi at this
+            grind
         simp_all +zetaDelta [Vector.getElem_set]
-        sorry
+        grind only [cases Or]
     }
     {
       uf := uf_new
       ri := ri
       h_pathcomp := by simp [uf_new]
+      h_size := by simp [uf_new, h_size]
     }
 termination_by uf.size.toList.max?.getD 0 - uf.size[i]
 decreasing_by
