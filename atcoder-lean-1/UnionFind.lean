@@ -18,7 +18,7 @@ def UnionFindVector.make (n : Nat) : UnionFindVector n :=
 /--
   iの同値類を表す数を得る関数。
 -/
-def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) :=
+def UnionFindVector.find (uf : UnionFindVector n) (i : Fin n) : Fin n :=
   let pi := uf.parent[i]
   if pi = i then
     i
@@ -36,15 +36,60 @@ decreasing_by
 theorem parent_find_eq_find (uf : UnionFindVector n) (i : Fin n)
   : uf.parent[uf.find i] = uf.find i :=
 by
-   fun_induction UnionFindVector.find with grind only
+  fun_induction UnionFindVector.find with grind only
 
 @[simp]
 theorem parent_find_eq_find_simpNF (uf : UnionFindVector n) (i : Fin n)
-  : uf.parent[(↑(uf.find i) : Nat)] = uf.find i :=
+  : uf.parent[(uf.find i).val] = uf.find i :=
 by
   have := parent_find_eq_find uf i
   simp at this
   assumption
+
+structure UnionFindPathCompData (n : Nat) (i : Fin n) where
+  uf : UnionFindVector n
+  ri : Fin n
+  h_pathcomp : uf.parent[i] = ri
+
+def UnionFindVector.findHelper (uf : UnionFindVector n) (i : Fin n)
+  : UnionFindPathCompData n i :=
+  let pi := uf.parent[i]
+  if h_if : pi = i then
+    {
+      uf := uf
+      ri := i
+      h_pathcomp := by simp_all [pi]
+    }
+  else
+    let ⟨uf1, ri, h_pathcomp1⟩ := uf.findHelper pi
+    let uf_new := {
+      parent := uf1.parent.set i ri
+      size := uf1.size
+      inv_size := uf1.inv_size
+      inv_parent_size := by
+        have := uf1.inv_size
+        have := uf1.inv_parent_size
+        have := h_pathcomp1
+        have : uf1.size[pi] <= uf1.size[ri] := by grind
+        have : uf1.size[i] < uf1.size[ri] := by
+          have := uf1.inv_parent_size i
+          sorry
+        simp_all +zetaDelta [Vector.getElem_set]
+        sorry
+    }
+    {
+      uf := uf_new
+      ri := ri
+      h_pathcomp := by simp [uf_new]
+    }
+termination_by uf.size.toList.max?.getD 0 - uf.size[i]
+decreasing_by
+  have := uf.inv_parent_size
+  have h_max : ∀ ii : Fin n, uf.size[ii] <= uf.size.toList.max?.getD 0 := by
+    intro
+    apply List.le_max?_getD_of_mem
+    simp
+  grind
 
 /--
   simpで上手に添え字を扱うための補題。
@@ -69,12 +114,12 @@ def UnionFindVector.internal_naive_union
     size := uf.size.set i_parent (sp + sc)
     inv_size := by
       have := uf.inv_size
-      simp_all (config := {zetaDelta := true}) [Vector.getElem_set]
+      simp_all +zetaDelta [Vector.getElem_set]
       grind only
     inv_parent_size := by
       have := uf.inv_size
       have := uf.inv_parent_size
-      simp_all (config := {zetaDelta := true}) [Vector.getElem_set]
+      simp_all +zetaDelta [Vector.getElem_set]
       grind only [cases Or]
   }
 
