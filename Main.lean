@@ -28,12 +28,14 @@ def readNat : InputReader Nat := do
   let num ← EStateM.modifyGet (readNatHelper 0)
   return num
 
-def readFin (n : Nat) : InputReader (Fin n) := do
-  let f ← readNat
-  if cond : f < n then
-    return ⟨f, cond⟩
+def checkCondition {p : Prop} [Decidable p] : InputReader (PLift p) := do
+  if condition : p then
+    return .up condition
   else
     EStateM.throw ()
+
+def readFin (n : Nat) : InputReader (Fin n) := do
+  return ⟨(← readNat), (← checkCondition).down⟩
 
 end
 
