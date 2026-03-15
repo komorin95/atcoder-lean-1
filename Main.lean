@@ -14,13 +14,14 @@ import Mathlib.Data.List.Chain
 -/
 structure ProblemInput where
   n : Nat
-  cond_n : n <= 100_000
+  l : Nat
   k : Nat
+  a : List Nat
+  cond_n : n <= 100_000
   cond_k : 1 <= k
   cond_kn : k <= n
-  a : List Nat
   cond_an : a.length = n
-  l : Nat
+  cond_l : l <= 1_000_000_000
   cond_al : List.Chain (α := Nat) (· < ·) 0 (a ++ [l])
 
 /--
@@ -116,40 +117,80 @@ def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 0 (input.l + 1)
 
+section
+
+open String (Iterator)
+
+abbrev InputReader := EStateM Unit Iterator
+
+partial def skipWhiteSpacesHelper (iter : Iterator) : Iterator :=
+  if iter.atEnd || !iter.curr.isWhitespace then
+    iter
+  else
+    skipWhiteSpacesHelper iter.next
+
+def skipWhiteSpaces : InputReader Unit :=
+  EStateM.modifyGet fun iter => ⟨(), skipWhiteSpacesHelper iter⟩
+
+partial def readNatHelper (num : Nat) (iter : Iterator) : Nat × Iterator :=
+  if iter.atEnd || !iter.curr.isDigit then
+    (num, iter)
+  else
+    let digit := iter.curr.toNat - 48
+    readNatHelper (num * 10 + digit) iter.next
+
+def readNat : InputReader Nat := do
+  skipWhiteSpaces
+  let iter ← EStateM.get
+  if iter.atEnd || !iter.curr.isDigit then
+    EStateM.throw ()
+  let num ← EStateM.modifyGet (readNatHelper 0)
+  return num
+
+def checkCondition {p : Prop} [Decidable p] : InputReader (PLift p) := do
+  if condition : p then
+    return .up condition
+  else
+    EStateM.throw ()
+
+def readFin (n : Nat) : InputReader (Fin n) := do
+  return ⟨(← readNat), (← checkCondition).down⟩
+
+end
+
+/--
+  入力パーサー。
+
+  EStateMモナドを使って、文字列上のIteratorの扱いを省略しつつ、
+  条件チェックに対するエラー処理を行っている。
+-/
+def readProblemInput : InputReader ProblemInput := do
+  let n ← readNat
+  return {
+    n := n
+    l := (← readNat)
+    k := (← readNat)
+    a := (← List.ofFnM (n := n) fun _ => readNat)
+
+    cond_n := (← checkCondition).down
+    cond_k := (← checkCondition).down
+    cond_kn := (← checkCondition).down
+    cond_al := (← checkCondition).down
+    cond_l := (← checkCondition).down
+    cond_an := (← checkCondition).down -- TODO: これは証明できるはず
+  }
+
 /--
   エントリーポイント。
-
-  標準入力をパースしてsolveに与え、出力をprintするのに加え、
-  問題の条件に入力が合っているかも判定している。
 -/
 def main : IO Unit := do
   let stdin ← IO.getStdin
   let instr ← stdin.readToEnd
-  let intokens := (instr.split (·.isWhitespace)).toArray
-  let n := intokens[0]!.trim.toNat!
-  if cond_n : n > 100_000 then unreachable! else
-  let l := intokens[1]!.trim.toNat!
-  let k := intokens[2]!.trim.toNat!
-  if cond_k : k < 1 then unreachable! else
-  if cond_kn : k > n then unreachable! else
-  let a := List.ofFn (n := n) fun i =>
-    intokens[i.val + 3]!.trim.toNat!
-  -- TODO: この仮定は人工的に与えなくてすむはず
-  if cond_an : a.length != n then unreachable! else
-  if cond_al : ¬ List.Chain (α := Nat) (· < ·) 0 (a ++ [l]) then unreachable! else
-  let input : ProblemInput := {
-    n := n
-    cond_n := by grind
-    k := k
-    cond_k := by grind
-    cond_kn := by grind
-    a := a
-    cond_an := by grind
-    l := l
-    cond_al := by grind
-  }
-  let solution := solve input
-  IO.println s!"{solution}"
+  match readProblemInput.run instr.iter with
+  | .error _ _ => unreachable!
+  | .ok input _ => do
+    let solution := solve input
+    IO.println s!"{solution}"
 
 /-
   ==================正当性証明==================
