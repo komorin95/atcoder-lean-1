@@ -357,28 +357,23 @@ by
     unfold betterScoreAchievableRec
     grind
   case case2 =>
-    unfold betterScoreAchievableRec
-    simp
+    simp [betterScoreAchievableRec]
   case case3 a0 b1 bs a1 as h_if ih =>
-    intro h_pre
-    obtain ⟨⟨h_sublist, _, _⟩, h_scoreRec, h_chain⟩ := h_pre
-    cases h_chain
-    case cons h_chain_2 =>
-      unfold betterScoreAchievableRec
-      simp [h_if]
-      apply ih
-      simp
-      have a1b1 : a1 <= b1 := by
-        cases h_sublist
-        case cons =>
-          have h_sublist_2 : (b1 :: bs).Sublist (as ++ [l]) := by grind
-          obtain h := List.Chain.sublist h_chain_2 h_sublist_2
-          cases h
-          case cons => grind
-        case cons₂ => grind
-      simp_all
-      obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
-      grind
+    simp [betterScoreAchievableRec, h_if]
+    intro h_sublist _ _ h_chain
+    apply ih
+    simp
+    have a1b1 : a1 <= b1 := by
+      cases h_sublist
+      case cons =>
+        have h_sublist_2 : (b1 :: bs).Sublist (as ++ [l]) := by grind
+        obtain h := List.Chain.sublist h_chain h_sublist_2
+        cases h
+        case cons => grind
+      case cons₂ => grind
+    simp_all
+    obtain h_ineq := scoreRecAntiMonotone a1 b1 bs l a1b1
+    grind [Nat.le_min]
   case case4 a1 as _ _ =>
     intro h_pre
     obtain ⟨_, _, h_chain⟩ := h_pre
