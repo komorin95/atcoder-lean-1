@@ -3,8 +3,6 @@
   解答プログラムのみのバージョン
 -/
 
-import Mathlib.Data.List.Chain
-
 structure ProblemInput where
   n : Nat
   k : Nat
