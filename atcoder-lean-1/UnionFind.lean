@@ -33,6 +33,11 @@ decreasing_by
     simp
   grind
 
+theorem find_make_eq_id (i : Fin n)
+  : (UnionFindVector.make n).find i = i :=
+by
+  simp [UnionFindVector.make, UnionFindVector.find]
+
 theorem parent_find_eq_find (uf : UnionFindVector n) (i : Fin n)
   : uf.parent[uf.find i] = uf.find i :=
 by
@@ -75,14 +80,8 @@ def UnionFindVector.findHelper (uf : UnionFindVector n) (i : Fin n)
         have : uf1.size[pi] <= uf1.size[ri] := by grind
         have : uf1.size[i] < uf1.size[ri] := by
           have := uf.inv_parent_size i
-          cases this
-          case inl hh =>
-            simp [pi] at h_if
-            simp at hh
-            grind
-          case inr =>
-            unfold pi at this
-            grind
+          simp [pi] at *
+          grind
         simp_all +zetaDelta [Vector.getElem_set]
         grind only [cases Or]
     }
@@ -100,6 +99,26 @@ decreasing_by
     apply List.le_max?_getD_of_mem
     simp
   grind
+
+def UnionFindVector.findWithPC (uf : UnionFindVector n) (i : Fin n) : UnionFindVector n × Fin n :=
+  let ⟨uf1, root, _, _⟩ := uf.findHelper i
+  ⟨uf1, root⟩
+
+theorem snd_findWithPC_eq_find (uf : UnionFindVector n) (i : Fin n)
+  : (uf.findWithPC i).snd = uf.find i :=
+by
+  unfold UnionFindVector.findWithPC
+  simp
+  fun_induction UnionFindVector.findHelper
+  case case1 pi h =>
+    simp_all +zetaDelta [UnionFindVector.find]
+  case case2 pi h _ _ x _ ih =>
+    simp [pi] at h
+    simp [x] at ih
+    simp
+    unfold UnionFindVector.find
+    simp [h]
+    assumption
 
 /--
   simpで上手に添え字を扱うための補題。
