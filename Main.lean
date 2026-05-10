@@ -1,17 +1,9 @@
-/-
-  競プロ典型90問1日目「Yokan Party」の検証済み解答
-  解答プログラムのみのバージョン
--/
-
 structure ProblemInput where
   n : Nat
   k : Nat
   a : List Nat
   l : Nat
 
-/--
-  二分探索を行い、predがtrueからfalseに変わる点をleftとrightの間で探す関数。
--/
 def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
   if right - left <= 1 then
     left
@@ -22,10 +14,6 @@ def binarySearch (pred : Nat → Bool) (left : Nat) (right : Nat) : Nat :=
     else
       binarySearch pred left mid
 
-/--
-  「a0からlの座標を占めるようかんを、aから選んだlen箇所で切ることで、
-  score以上のスコアが実現できるか」を貪欲法で判定する関数。
--/
 def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Bool :=
   if len == 0 then
     l - a0 >= score
@@ -38,21 +26,12 @@ def betterScoreAchievableRec (a0 : Nat) (a : List Nat) (l len score : Nat) : Boo
       else
         betterScoreAchievableRec a0 as l len score
 
-/--
-  「inputのもとで、score以上のスコアが実現できるか？」を貪欲法で判定する関数。
--/
 def betterScoreAchievable (input : ProblemInput) (score : Nat) : Bool :=
   betterScoreAchievableRec 0 input.a input.l input.k score
 
-/--
-  貪欲法によるスコア閾値達成可能性の判定と二分探索を組み合わせ、最大スコアを求める関数。
--/
 def solve (input : ProblemInput) : Nat :=
   binarySearch (betterScoreAchievable input) 0 (input.l + 1)
 
-/--
-  エントリーポイント
--/
 def main : IO Unit := do
   let stdin ← IO.getStdin
   let instr ← stdin.readToEnd
