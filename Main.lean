@@ -28,6 +28,50 @@ def printSolution (answer : List (List Char)) : IO Unit := do
   for xs in answer do
     IO.println (String.mk xs)
 
+def LexLe : List Char -> List Char -> Prop
+  | [], _ => True
+  | _ :: _, [] => False
+  | x :: xs, y :: ys => (x = '(' ∧ y = ')') ∨ (x = y ∧ LexLe xs ys)
+
+def LexSorted (answer : List (List Char)) : Prop :=
+  answer.Pairwise LexLe
+
+theorem lex_prefix {c : Char} {xs ys : List Char} :
+    LexLe xs ys -> LexLe (c :: xs) (c :: ys) := by
+  intro h
+  simp [LexLe, h]
+
+theorem lex_open_close {xs ys : List Char} : LexLe ('(' :: xs) (')' :: ys) := by
+  simp [LexLe]
+
+theorem gen_lex_sorted (rem bal : Nat) : LexSorted (gen rem bal) := by
+  induction rem generalizing bal with
+  | zero =>
+      by_cases hbal : bal = 0 <;> simp [gen, hbal, LexSorted]
+  | succ rem ih =>
+      by_cases hbal : bal = 0
+      · have hleft : LexSorted ((gen rem (bal + 1)).map (fun xs => '(' :: xs)) :=
+          List.Pairwise.map _ (fun _ _ h => lex_prefix h) (ih (bal + 1))
+        simpa [gen, hbal, LexSorted] using hleft
+      · have hleft : LexSorted ((gen rem (bal + 1)).map (fun xs => '(' :: xs)) :=
+          List.Pairwise.map _ (fun _ _ h => lex_prefix h) (ih (bal + 1))
+        have hright : LexSorted ((gen rem (bal - 1)).map (fun xs => ')' :: xs)) :=
+          List.Pairwise.map _ (fun _ _ h => lex_prefix h) (ih (bal - 1))
+        have hcross :
+            ∀ a, a ∈ (gen rem (bal + 1)).map (fun xs => '(' :: xs) ->
+            ∀ b, b ∈ (gen rem (bal - 1)).map (fun xs => ')' :: xs) ->
+              LexLe a b := by
+          intro a ha b hb
+          rcases List.mem_map.mp ha with ⟨xs, _, rfl⟩
+          rcases List.mem_map.mp hb with ⟨ys, _, rfl⟩
+          exact lex_open_close
+        have happ :
+            LexSorted
+              (((gen rem (bal + 1)).map (fun xs => '(' :: xs)) ++
+                ((gen rem (bal - 1)).map (fun xs => ')' :: xs))) :=
+          List.pairwise_append.mpr ⟨hleft, hright, hcross⟩
+        simpa [gen, hbal, LexSorted] using happ
+
 theorem gen_sound {rem bal : Nat} {xs : List Char} :
     xs ∈ gen rem bal -> xs.length = rem ∧ ValidFrom bal xs := by
   induction rem generalizing bal xs with
@@ -113,14 +157,20 @@ theorem solve_complete {N : Nat} {xs : List Char} :
 
 def SolutionIsValid (N : Nat) (answer : List (List Char)) : Prop :=
   (∀ xs, xs ∈ answer -> xs.length = N ∧ IsCorrectParenString xs) ∧
-    (∀ xs, xs.length = N -> IsCorrectParenString xs -> xs ∈ answer)
+    (∀ xs, xs.length = N -> IsCorrectParenString xs -> xs ∈ answer) ∧
+      LexSorted answer
 
 theorem solution_is_valid (N : Nat) : SolutionIsValid N (solve N) := by
   constructor
   · intro xs hmem
     exact solve_sound hmem
-  · intro xs hlen hcorrect
-    exact solve_complete hlen hcorrect
+  · constructor
+    · intro xs hlen hcorrect
+      exact solve_complete hlen hcorrect
+    · unfold solve
+      split
+      · simp [LexSorted]
+      · exact gen_lex_sorted N 0
 
 def readNat (s : String) : Nat :=
   match s.split (fun c => c = ' ' || c = '\n' || c = '\t' || c = '\r') |>.filter (· ≠ "") with
