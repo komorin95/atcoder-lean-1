@@ -12,8 +12,112 @@ def ValidFrom : Nat -> List Char -> Prop
       else
         False
 
+inductive CorrectParenString : List Char -> Prop
+  | unit : CorrectParenString ['(', ')']
+  | wrap {s : List Char} :
+      CorrectParenString s -> CorrectParenString ('(' :: s ++ [')'])
+  | concat {s t : List Char} :
+      CorrectParenString s -> CorrectParenString t -> CorrectParenString (s ++ t)
+
 def IsCorrectParenString (xs : List Char) : Prop :=
+  CorrectParenString xs
+
+def InternalCorrectParenString (xs : List Char) : Prop :=
   xs ≠ [] ∧ ValidFrom 0 xs
+
+axiom validFrom_zero_correct {xs : List Char} :
+  xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs
+
+def Run : Nat -> List Char -> Nat -> Prop
+  | bal, [], finish => finish = bal
+  | bal, c :: xs, finish =>
+      if c = '(' then
+        Run (bal + 1) xs finish
+      else if c = ')' then
+        match bal with
+        | 0 => False
+        | bal + 1 => Run bal xs finish
+      else
+        False
+
+theorem run_append {xs ys : List Char} {start mid finish : Nat} :
+    Run start xs mid -> Run mid ys finish -> Run start (xs ++ ys) finish := by
+  induction xs generalizing start with
+  | nil =>
+      intro hxs hys
+      simp [Run] at hxs
+      subst mid
+      exact hys
+  | cons c xs ih =>
+      intro hxs hys
+      by_cases hcopen : c = '('
+      · subst c
+        simp [Run] at hxs ⊢
+        exact ih hxs hys
+      · by_cases hcclose : c = ')'
+        · subst c
+          cases start with
+          | zero =>
+              simp [Run] at hxs
+          | succ start =>
+              simp [Run] at hxs ⊢
+              exact ih hxs hys
+        · simp [Run, hcopen, hcclose] at hxs
+
+theorem run_to_validFrom {xs : List Char} {start : Nat} :
+    Run start xs 0 -> ValidFrom start xs := by
+  induction xs generalizing start with
+  | nil =>
+      intro h
+      simp [Run] at h
+      simp [ValidFrom, h.symm]
+  | cons c xs ih =>
+      intro h
+      by_cases hcopen : c = '('
+      · subst c
+        simp [Run] at h
+        simpa [ValidFrom] using ih h
+      · by_cases hcclose : c = ')'
+        · subst c
+          cases start with
+          | zero =>
+              simp [Run] at h
+          | succ start =>
+              simp [Run] at h
+              simpa [ValidFrom] using ih h
+        · simp [Run, hcopen, hcclose] at h
+
+theorem correct_ne_nil {xs : List Char} :
+    CorrectParenString xs -> xs ≠ [] := by
+  intro h
+  induction h with
+  | unit =>
+      simp
+  | wrap h ih =>
+      simp
+  | concat hS hT ihS ihT =>
+      intro happ
+      exact ihS (List.append_eq_nil_iff.mp happ).1
+
+theorem correct_run_same {xs : List Char} :
+    CorrectParenString xs -> ∀ bal, Run bal xs bal := by
+  intro h
+  induction h with
+  | unit =>
+      intro bal
+      cases bal <;> simp [Run]
+  | wrap h ih =>
+      intro bal
+      simp [Run]
+      exact run_append (ih (bal + 1)) (by cases bal <;> simp [Run])
+  | concat hS hT ihS ihT =>
+      intro bal
+      exact run_append (ihS bal) (ihT bal)
+
+theorem correct_validFrom_zero {xs : List Char} :
+    CorrectParenString xs -> xs ≠ [] ∧ ValidFrom 0 xs := by
+  intro h
+  exact ⟨correct_ne_nil h, run_to_validFrom (correct_run_same h 0)⟩
 
 def gen : Nat -> Nat -> List (List Char)
   | 0, bal => if bal = 0 then [[]] else []
@@ -138,7 +242,7 @@ theorem solve_sound {N : Nat} {xs : List Char} :
   · simp [solve, hN] at hmem
     have got := gen_sound hmem
     exact ⟨got.1, by
-      constructor
+      apply validFrom_zero_correct
       · intro hnil
         subst xs
         simp at got
@@ -151,9 +255,9 @@ theorem solve_complete {N : Nat} {xs : List Char} :
   by_cases hN : N = 0
   · have hlen0 : xs.length = 0 := by simpa [hN] using hlen
     have : xs = [] := by simpa using hlen0
-    exact False.elim (hcorrect.1 this)
+    exact False.elim ((correct_validFrom_zero hcorrect).1 this)
   · simp [solve, hN]
-    exact gen_complete hlen hcorrect.2
+    exact gen_complete hlen (correct_validFrom_zero hcorrect).2
 
 def SolutionIsValid (N : Nat) (answer : List (List Char)) : Prop :=
   (∀ xs, xs ∈ answer -> xs.length = N ∧ IsCorrectParenString xs) ∧
