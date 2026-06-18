@@ -12,6 +12,11 @@ def ValidFrom : Nat -> List Char -> Prop
       else
         False
 
+theorem validFrom_decomposition :
+    xs ≠ [] -> ValidFrom 0 xs ->
+    ∃ ys zs,
+    (ValidFrom 0 ys ∧ ValidFrom 0 zs ∧ xs = '(' :: ys ++ [')'] ++ zs) := sorry
+
 inductive CorrectParenString : List Char -> Prop
   | unit : CorrectParenString ['(', ')']
   | wrap {s : List Char} :
@@ -25,8 +30,8 @@ def IsCorrectParenString (xs : List Char) : Prop :=
 def InternalCorrectParenString (xs : List Char) : Prop :=
   xs ≠ [] ∧ ValidFrom 0 xs
 
-axiom validFrom_zero_correct {xs : List Char} :
-  xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs
+theorem validFrom_zero_correct {xs : List Char} :
+  xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs := sorry
 
 def Run : Nat -> List Char -> Nat -> Prop
   | bal, [], finish => finish = bal
