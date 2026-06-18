@@ -1,4 +1,79 @@
-import Std
+/-
+
+競プロ典型90問2日目「Encyclopedia of Parentheses」の形式検証済みAI生成解答
+
+以下の全てのステップを Codex CLI GPT-5.5 に行わせた：
+
+- 解法の考察、実装
+- 証明すべき内容の形式化
+- 証明の記述
+
+途中での人間(komorin95)の介入は以下のもののみである：
+
+- 証明すべき内容として「辞書順である」が含まれていなかったため、含めるよう指示
+- 「正しいカッコ列」の定義が問題文のものと異なっていたため、問題文を正しく反映した帰納的定義にするよう指示
+- `validFrom_zero_correct`が`axiom`とされていたため、`validFrom_decomposition`を主張のみ追加し、これを使って証明する方針を提案
+- 完成後、読みやすいよう順序を変えて不要な定義を削除し、コメントを追加
+
+-/
+
+/-
+検証すべき性質の定義
+`SolutionIsValid`が解答が満たすべき性質である
+-/
+
+inductive CorrectParenString : List Char -> Prop
+  | unit : CorrectParenString ['(', ')']
+  | wrap {s : List Char} :
+      CorrectParenString s -> CorrectParenString ('(' :: s ++ [')'])
+  | concat {s t : List Char} :
+      CorrectParenString s -> CorrectParenString t -> CorrectParenString (s ++ t)
+
+def LexLe : List Char -> List Char -> Prop
+  | [], _ => True
+  | _ :: _, [] => False
+  | x :: xs, y :: ys => (x = '(' ∧ y = ')') ∨ (x = y ∧ LexLe xs ys)
+
+def LexSorted (answer : List (List Char)) : Prop :=
+  answer.Pairwise LexLe
+
+def SolutionIsValid (N : Nat) (answer : List (List Char)) : Prop :=
+  (∀ xs, xs ∈ answer -> xs.length = N ∧ CorrectParenString xs) ∧
+    (∀ xs, xs.length = N -> CorrectParenString xs -> xs ∈ answer) ∧
+      LexSorted answer
+
+/-
+解答プログラム
+`solve`が検証対象となるプログラムである
+-/
+
+def gen : Nat -> Nat -> List (List Char)
+  | 0, bal => if bal = 0 then [[]] else []
+  | rem + 1, bal =>
+      (gen rem (bal + 1)).map (fun xs => '(' :: xs) ++
+        if bal = 0 then [] else (gen rem (bal - 1)).map (fun xs => ')' :: xs)
+
+def solve (N : Nat) : List (List Char) :=
+  if N = 0 then [] else gen N 0
+
+def printSolution (answer : List (List Char)) : IO Unit := do
+  for xs in answer do
+    IO.println (String.mk xs)
+
+def readNat (s : String) : Nat :=
+  match s.split (fun c => c = ' ' || c = '\n' || c = '\t' || c = '\r') |>.filter (· ≠ "") with
+  | token :: _ => token.toNat!
+  | [] => 0
+
+def main : IO Unit := do
+  let stdin ← IO.getStdin
+  let input ← stdin.readToEnd
+  printSolution (solve (readNat input))
+
+/-
+正当性の検証
+最後の`solution_is_valid`が上記プログラムの正当性を示す定理である
+-/
 
 def ValidFrom : Nat -> List Char -> Prop
   | bal, [] => bal = 0
@@ -192,19 +267,6 @@ theorem validFrom_decomposition :
           simp [ValidFrom] at hvalid
         · simp [ValidFrom, hcopen, hcclose] at hvalid
 
-inductive CorrectParenString : List Char -> Prop
-  | unit : CorrectParenString ['(', ')']
-  | wrap {s : List Char} :
-      CorrectParenString s -> CorrectParenString ('(' :: s ++ [')'])
-  | concat {s t : List Char} :
-      CorrectParenString s -> CorrectParenString t -> CorrectParenString (s ++ t)
-
-def IsCorrectParenString (xs : List Char) : Prop :=
-  CorrectParenString xs
-
-def InternalCorrectParenString (xs : List Char) : Prop :=
-  xs ≠ [] ∧ ValidFrom 0 xs
-
 theorem validFrom_zero_correct {xs : List Char} :
   xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs := by
   let motive (n : Nat) : Prop :=
@@ -267,27 +329,6 @@ theorem correct_validFrom_zero {xs : List Char} :
     CorrectParenString xs -> xs ≠ [] ∧ ValidFrom 0 xs := by
   intro h
   exact ⟨correct_ne_nil h, run_to_validFrom (correct_run_same h 0)⟩
-
-def gen : Nat -> Nat -> List (List Char)
-  | 0, bal => if bal = 0 then [[]] else []
-  | rem + 1, bal =>
-      (gen rem (bal + 1)).map (fun xs => '(' :: xs) ++
-        if bal = 0 then [] else (gen rem (bal - 1)).map (fun xs => ')' :: xs)
-
-def solve (N : Nat) : List (List Char) :=
-  if N = 0 then [] else gen N 0
-
-def printSolution (answer : List (List Char)) : IO Unit := do
-  for xs in answer do
-    IO.println (String.mk xs)
-
-def LexLe : List Char -> List Char -> Prop
-  | [], _ => True
-  | _ :: _, [] => False
-  | x :: xs, y :: ys => (x = '(' ∧ y = ')') ∨ (x = y ∧ LexLe xs ys)
-
-def LexSorted (answer : List (List Char)) : Prop :=
-  answer.Pairwise LexLe
 
 theorem lex_prefix {c : Char} {xs ys : List Char} :
     LexLe xs ys -> LexLe (c :: xs) (c :: ys) := by
@@ -384,7 +425,7 @@ theorem gen_complete {rem bal : Nat} {xs : List Char} :
             · simp [ValidFrom, hxopen, hxclose] at hvalid
 
 theorem solve_sound {N : Nat} {xs : List Char} :
-    xs ∈ solve N -> xs.length = N ∧ IsCorrectParenString xs := by
+    xs ∈ solve N -> xs.length = N ∧ CorrectParenString xs := by
   intro hmem
   by_cases hN : N = 0
   · simp [solve, hN] at hmem
@@ -399,7 +440,7 @@ theorem solve_sound {N : Nat} {xs : List Char} :
       · exact got.2⟩
 
 theorem solve_complete {N : Nat} {xs : List Char} :
-    xs.length = N -> IsCorrectParenString xs -> xs ∈ solve N := by
+    xs.length = N -> CorrectParenString xs -> xs ∈ solve N := by
   intro hlen hcorrect
   by_cases hN : N = 0
   · have hlen0 : xs.length = 0 := by simpa [hN] using hlen
@@ -407,11 +448,6 @@ theorem solve_complete {N : Nat} {xs : List Char} :
     exact False.elim ((correct_validFrom_zero hcorrect).1 this)
   · simp [solve, hN]
     exact gen_complete hlen (correct_validFrom_zero hcorrect).2
-
-def SolutionIsValid (N : Nat) (answer : List (List Char)) : Prop :=
-  (∀ xs, xs ∈ answer -> xs.length = N ∧ IsCorrectParenString xs) ∧
-    (∀ xs, xs.length = N -> IsCorrectParenString xs -> xs ∈ answer) ∧
-      LexSorted answer
 
 theorem solution_is_valid (N : Nat) : SolutionIsValid N (solve N) := by
   constructor
@@ -424,13 +460,3 @@ theorem solution_is_valid (N : Nat) : SolutionIsValid N (solve N) := by
       split
       · simp [LexSorted]
       · exact gen_lex_sorted N 0
-
-def readNat (s : String) : Nat :=
-  match s.split (fun c => c = ' ' || c = '\n' || c = '\t' || c = '\r') |>.filter (· ≠ "") with
-  | token :: _ => token.toNat!
-  | [] => 0
-
-def main : IO Unit := do
-  let stdin ← IO.getStdin
-  let input ← stdin.readToEnd
-  printSolution (solve (readNat input))
