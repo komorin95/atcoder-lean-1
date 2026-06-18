@@ -12,27 +12,6 @@ def ValidFrom : Nat -> List Char -> Prop
       else
         False
 
-theorem validFrom_decomposition :
-    xs ≠ [] -> ValidFrom 0 xs ->
-    ∃ ys zs,
-    (ValidFrom 0 ys ∧ ValidFrom 0 zs ∧ xs = '(' :: ys ++ [')'] ++ zs) := sorry
-
-inductive CorrectParenString : List Char -> Prop
-  | unit : CorrectParenString ['(', ')']
-  | wrap {s : List Char} :
-      CorrectParenString s -> CorrectParenString ('(' :: s ++ [')'])
-  | concat {s t : List Char} :
-      CorrectParenString s -> CorrectParenString t -> CorrectParenString (s ++ t)
-
-def IsCorrectParenString (xs : List Char) : Prop :=
-  CorrectParenString xs
-
-def InternalCorrectParenString (xs : List Char) : Prop :=
-  xs ≠ [] ∧ ValidFrom 0 xs
-
-theorem validFrom_zero_correct {xs : List Char} :
-  xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs := sorry
-
 def Run : Nat -> List Char -> Nat -> Prop
   | bal, [], finish => finish = bal
   | bal, c :: xs, finish =>
@@ -91,6 +70,171 @@ theorem run_to_validFrom {xs : List Char} {start : Nat} :
               simp [Run] at h
               simpa [ValidFrom] using ih h
         · simp [Run, hcopen, hcclose] at h
+
+theorem validFrom_to_run {xs : List Char} {start : Nat} :
+    ValidFrom start xs -> Run start xs 0 := by
+  induction xs generalizing start with
+  | nil =>
+      intro h
+      simp [ValidFrom] at h
+      simp [Run, h.symm]
+  | cons c xs ih =>
+      intro h
+      by_cases hcopen : c = '('
+      · subst c
+        simp [ValidFrom] at h
+        simpa [Run] using ih h
+      · by_cases hcclose : c = ')'
+        · subst c
+          cases start with
+          | zero =>
+              simp [ValidFrom] at h
+          | succ start =>
+              simp [ValidFrom] at h
+              simpa [Run] using ih h
+        · simp [ValidFrom, hcopen, hcclose] at h
+
+theorem run_lift {xs : List Char} {start finish extra : Nat} :
+    Run start xs finish -> Run (start + extra) xs (finish + extra) := by
+  induction xs generalizing start extra with
+  | nil =>
+      intro h
+      simp [Run] at h ⊢
+      omega
+  | cons c xs ih =>
+      intro h
+      by_cases hcopen : c = '('
+      · subst c
+        simp [Run] at h ⊢
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih h
+      · by_cases hcclose : c = ')'
+        · subst c
+          cases start with
+          | zero =>
+              simp [Run] at h
+          | succ start =>
+              simp [Run] at h
+              cases extra with
+              | zero =>
+                  simpa [Run] using h
+              | succ extra =>
+                  simp [Run]
+                  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+                    ih (extra := extra + 1) h
+        · simp [Run, hcopen, hcclose] at h
+
+theorem run_balanced_block {ys : List Char} :
+    Run 0 ys 0 -> Run 0 ('(' :: ys ++ [')']) 0 := by
+  intro hys
+  simp [Run]
+  exact run_append (run_lift (extra := 1) hys) (by simp [Run])
+
+theorem run_drop_one_decomposition {xs : List Char} {base finish : Nat} :
+    finish ≤ base -> Run (base + 1) xs finish ->
+      ∃ ys zs, Run 0 ys 0 ∧ Run base zs finish ∧ xs = ys ++ [')'] ++ zs := by
+  let motive (n : Nat) : Prop :=
+    ∀ xs : List Char, xs.length = n -> ∀ base finish : Nat,
+      finish ≤ base -> Run (base + 1) xs finish ->
+        ∃ ys zs, Run 0 ys 0 ∧ Run base zs finish ∧ xs = ys ++ [')'] ++ zs
+  have hmain : ∀ n, motive n :=
+    fun n => Nat.strongRecOn n (motive := motive) (fun n ih => by
+      intro xs hlen base finish hle hrun
+      cases xs with
+      | nil =>
+          simp [Run] at hrun
+          omega
+      | cons c xs =>
+          by_cases hcopen : c = '('
+          · subst c
+            simp [Run] at hrun
+            have htailLen : xs.length < n := by
+              simp at hlen
+              omega
+            rcases ih xs.length htailLen xs rfl (base + 1) finish (by omega) hrun with
+              ⟨inner, rest, hinner, hrest, hxs⟩
+            have hrestLen : rest.length < n := by
+              subst xs
+              simp at hlen
+              omega
+            rcases ih rest.length hrestLen rest rfl base finish hle hrest with
+              ⟨tail, zs, htail, hzs, hrestEq⟩
+            refine ⟨'(' :: inner ++ [')'] ++ tail, zs, ?_, hzs, ?_⟩
+            · have hblock : Run 0 ('(' :: inner ++ [')']) 0 := run_balanced_block hinner
+              simpa [List.cons_append, List.append_assoc] using run_append hblock htail
+            · subst xs
+              rw [hrestEq]
+              simp [List.cons_append, List.append_assoc]
+          · by_cases hcclose : c = ')'
+            · subst c
+              simp [Run] at hrun
+              exact ⟨[], xs, by simp [Run], hrun, by simp⟩
+            · simp [Run, hcopen, hcclose] at hrun
+      )
+  exact hmain xs.length xs rfl base finish
+
+theorem validFrom_decomposition :
+    xs ≠ [] -> ValidFrom 0 xs ->
+    ∃ ys zs,
+    (ValidFrom 0 ys ∧ ValidFrom 0 zs ∧ xs = '(' :: ys ++ [')'] ++ zs) := by
+  intro hne hvalid
+  cases xs with
+  | nil =>
+      contradiction
+  | cons c xs =>
+      by_cases hcopen : c = '('
+      · subst c
+        simp [ValidFrom] at hvalid
+        rcases run_drop_one_decomposition (base := 0) (finish := 0) (by omega)
+            (validFrom_to_run hvalid) with ⟨ys, zs, hys, hzs, htail⟩
+        exact ⟨ys, zs, run_to_validFrom hys, run_to_validFrom hzs, by simp [htail]⟩
+      · by_cases hcclose : c = ')'
+        · subst c
+          simp [ValidFrom] at hvalid
+        · simp [ValidFrom, hcopen, hcclose] at hvalid
+
+inductive CorrectParenString : List Char -> Prop
+  | unit : CorrectParenString ['(', ')']
+  | wrap {s : List Char} :
+      CorrectParenString s -> CorrectParenString ('(' :: s ++ [')'])
+  | concat {s t : List Char} :
+      CorrectParenString s -> CorrectParenString t -> CorrectParenString (s ++ t)
+
+def IsCorrectParenString (xs : List Char) : Prop :=
+  CorrectParenString xs
+
+def InternalCorrectParenString (xs : List Char) : Prop :=
+  xs ≠ [] ∧ ValidFrom 0 xs
+
+theorem validFrom_zero_correct {xs : List Char} :
+  xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs := by
+  let motive (n : Nat) : Prop :=
+    ∀ xs : List Char, xs.length = n -> xs ≠ [] -> ValidFrom 0 xs -> CorrectParenString xs
+  have hmain : ∀ n, motive n :=
+    fun n => Nat.strongRecOn n (motive := motive) (fun n ih => by
+        intro xs hlen hne hvalid
+        rcases validFrom_decomposition hne hvalid with ⟨ys, zs, hysValid, hzsValid, hxs⟩
+        have hysLen : ys.length < n := by
+          subst xs
+          simp at hlen
+          omega
+        have hzsLen : zs.length < n := by
+          subst xs
+          simp at hlen
+          omega
+        have hleft : CorrectParenString ('(' :: ys ++ [')']) := by
+          by_cases hysNil : ys = []
+          · subst ys
+            exact CorrectParenString.unit
+          · exact CorrectParenString.wrap (ih ys.length hysLen ys rfl hysNil hysValid)
+        by_cases hzsNil : zs = []
+        · subst zs
+          simpa [hxs] using hleft
+        · have hright : CorrectParenString zs :=
+            ih zs.length hzsLen zs rfl hzsNil hzsValid
+          simpa [hxs, List.cons_append, List.append_assoc] using
+            CorrectParenString.concat hleft hright
+      )
+  exact hmain xs.length xs rfl
 
 theorem correct_ne_nil {xs : List Char} :
     CorrectParenString xs -> xs ≠ [] := by
